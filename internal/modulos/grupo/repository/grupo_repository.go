@@ -44,7 +44,7 @@ func novoIdentificador(prefixo string) string {
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarGrupos(contexto context.Context) ([]grupoService.GrupoEstudo, error) {
-	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label FROM grupos_estudo ORDER BY criado_em DESC`
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label, criado_por::text FROM grupos_estudo ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,10 @@ func (repositorio *grupoRepositoryPostgres) ListarGrupos(contexto context.Contex
 	for rows.Next() {
 		var g grupoService.GrupoEstudo
 		var lvl string
-		if err := rows.Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario); err != nil {
+		if err := rows.Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario, &g.AutorID); err != nil {
+			return nil, err
+		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
 			return nil, err
 		}
 		g.Nivel = grupoService.NivelGrupoEstudo(lvl)
@@ -195,14 +198,17 @@ func (repositorio *grupoRepositoryPostgres) AssociarLeituraGrupo(grupoID, leitur
 }
 
 func (repositorio *grupoRepositoryPostgres) obterGrupo(contexto context.Context, id string) (grupoService.GrupoEstudo, bool, error) {
-	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label FROM grupos_estudo WHERE id=$1::uuid`
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label, criado_por::text FROM grupos_estudo WHERE id=$1::uuid`
 	var g grupoService.GrupoEstudo
 	var lvl string
-	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario)
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario, &g.AutorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return grupoService.GrupoEstudo{}, false, nil
 		}
+		return grupoService.GrupoEstudo{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
 		return grupoService.GrupoEstudo{}, false, err
 	}
 	g.Nivel = grupoService.NivelGrupoEstudo(lvl)
@@ -256,4 +262,12 @@ func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto conte
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }

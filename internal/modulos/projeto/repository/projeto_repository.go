@@ -20,7 +20,7 @@ func NovoProjetoRepository(pool *pgxpool.Pool) projetoService.ProjetoRepository 
 }
 
 func (repositorio *projetoRepositoryPostgres) ListarProjetos(contexto context.Context) ([]projetoService.Projeto, error) {
-	const sql = `SELECT id::text, titulo, description FROM projetos ORDER BY criado_em DESC`
+	const sql = `SELECT id::text, titulo, description, criado_por::text FROM projetos ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,10 @@ func (repositorio *projetoRepositoryPostgres) ListarProjetos(contexto context.Co
 	var out []projetoService.Projeto
 	for rows.Next() {
 		var pr projetoService.Projeto
-		if err := rows.Scan(&pr.Identificador, &pr.Titulo, &pr.Descricao); err != nil {
+		if err := rows.Scan(&pr.Identificador, &pr.Titulo, &pr.Descricao, &pr.AutorID); err != nil {
+			return nil, err
+		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
 			return nil, err
 		}
 		out = append(out, pr)
@@ -78,13 +81,16 @@ func (repositorio *projetoRepositoryPostgres) RemoverProjetoComoAdmin(contexto c
 }
 
 func (repositorio *projetoRepositoryPostgres) obterProjeto(contexto context.Context, id string) (projetoService.Projeto, bool, error) {
-	const sql = `SELECT id::text, titulo, description FROM projetos WHERE id=$1::uuid`
+	const sql = `SELECT id::text, titulo, description, criado_por::text FROM projetos WHERE id=$1::uuid`
 	var pr projetoService.Projeto
-	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&pr.Identificador, &pr.Titulo, &pr.Descricao)
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&pr.Identificador, &pr.Titulo, &pr.Descricao, &pr.AutorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return projetoService.Projeto{}, false, nil
 		}
+		return projetoService.Projeto{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
 		return projetoService.Projeto{}, false, err
 	}
 	return pr, true, nil
@@ -135,4 +141,12 @@ func (repositorio *projetoRepositoryPostgres) removerProjetoComPerfil(contexto c
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }

@@ -24,7 +24,7 @@ func NovoEmpresaRepository(pool *pgxpool.Pool) empresaService.EmpresaRepository 
 func (repositorio *empresaRepositoryPostgres) ListarOportunidades(contexto context.Context) ([]empresaService.Oportunidade, error) {
 	const sql = `
 SELECT id::text, titulo, company_name, short_description, full_description, apply_deadline,
-       work_location::text, type_label, coalesce(requirements, '[]'::jsonb)
+       work_location::text, type_label, coalesce(requirements, '[]'::jsonb), criado_por::text
 FROM oportunidades
 ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
@@ -38,6 +38,9 @@ ORDER BY criado_em DESC`
 		if err != nil {
 			return nil, err
 		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
+			return nil, err
+		}
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -46,7 +49,7 @@ ORDER BY criado_em DESC`
 func (repositorio *empresaRepositoryPostgres) ObterOportunidade(contexto context.Context, id string) (empresaService.Oportunidade, bool, error) {
 	const sql = `
 SELECT id::text, titulo, company_name, short_description, full_description, apply_deadline,
-       work_location::text, type_label, coalesce(requirements, '[]'::jsonb)
+       work_location::text, type_label, coalesce(requirements, '[]'::jsonb), criado_por::text
 FROM oportunidades WHERE id = $1::uuid`
 	row := repositorio.pool.QueryRow(contexto, sql, id)
 	o, err := scanLinhaOportunidade(row)
@@ -54,6 +57,9 @@ FROM oportunidades WHERE id = $1::uuid`
 		if errors.Is(err, pgx.ErrNoRows) {
 			return empresaService.Oportunidade{}, false, nil
 		}
+		return empresaService.Oportunidade{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
 		return empresaService.Oportunidade{}, false, err
 	}
 	return o, true, nil
@@ -188,7 +194,7 @@ func scanLinhaOportunidade(row interface{ Scan(dest ...any) error }) (empresaSer
 	var reqsJSON []byte
 	err := row.Scan(
 		&o.Identificador, &o.Titulo, &o.NomeEmpresa, &o.DescricaoCurta, &o.DescricaoCompleta,
-		&deadline, &wl, &o.RotuloTipo, &reqsJSON,
+		&deadline, &wl, &o.RotuloTipo, &reqsJSON, &o.AutorID,
 	)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
@@ -202,6 +208,14 @@ func scanLinhaOportunidade(row interface{ Scan(dest ...any) error }) (empresaSer
 		o.Requisitos = []string{}
 	}
 	return o, nil
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }
 
 func atualizarCartaoFeedOportunidadeTx(ctx context.Context, tx pgx.Tx, ref string, corpo empresaService.RequisicaoCriarOportunidade) error {

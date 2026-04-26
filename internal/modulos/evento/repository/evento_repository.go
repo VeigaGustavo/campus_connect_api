@@ -21,7 +21,7 @@ func NovoEventoRepository(pool *pgxpool.Pool) eventoService.EventoRepository {
 }
 
 func (repositorio *eventoRepositoryPostgres) ListarEventos(contexto context.Context) ([]eventoService.EventoCampus, error) {
-	const sql = `SELECT id::text, titulo, description, start_at, location, organizer FROM eventos ORDER BY criado_em DESC`
+	const sql = `SELECT id::text, titulo, description, start_at, location, organizer, criado_por::text FROM eventos ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,10 @@ func (repositorio *eventoRepositoryPostgres) ListarEventos(contexto context.Cont
 	for rows.Next() {
 		var e eventoService.EventoCampus
 		var t time.Time
-		if err := rows.Scan(&e.Identificador, &e.Titulo, &e.Descricao, &t, &e.Local, &e.Organizador); err != nil {
+		if err := rows.Scan(&e.Identificador, &e.Titulo, &e.Descricao, &t, &e.Local, &e.Organizador, &e.AutorID); err != nil {
+			return nil, err
+		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, e.AutorID, &e.Autor); err != nil {
 			return nil, err
 		}
 		e.InicioEm = t.UTC().Format(time.RFC3339)
@@ -85,14 +88,17 @@ func (repositorio *eventoRepositoryPostgres) RemoverEventoComoAdmin(contexto con
 }
 
 func (repositorio *eventoRepositoryPostgres) obterEvento(contexto context.Context, id string) (eventoService.EventoCampus, bool, error) {
-	const sql = `SELECT id::text, titulo, description, start_at, location, organizer FROM eventos WHERE id=$1::uuid`
+	const sql = `SELECT id::text, titulo, description, start_at, location, organizer, criado_por::text FROM eventos WHERE id=$1::uuid`
 	var e eventoService.EventoCampus
 	var t time.Time
-	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&e.Identificador, &e.Titulo, &e.Descricao, &t, &e.Local, &e.Organizador)
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&e.Identificador, &e.Titulo, &e.Descricao, &t, &e.Local, &e.Organizador, &e.AutorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return eventoService.EventoCampus{}, false, nil
 		}
+		return eventoService.EventoCampus{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, e.AutorID, &e.Autor); err != nil {
 		return eventoService.EventoCampus{}, false, err
 	}
 	e.InicioEm = t.UTC().Format(time.RFC3339)
@@ -150,4 +156,12 @@ func (repositorio *eventoRepositoryPostgres) removerEventoComPerfil(contexto con
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }

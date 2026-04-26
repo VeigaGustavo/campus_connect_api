@@ -1,13 +1,17 @@
 package model
 
+import comum "campus_connect_api/internal/modulos/comum"
+
 type GrupoEstudo struct {
-	Identificador string           `json:"id"`
-	Titulo        string           `json:"title"`
-	AreaEstudo    string           `json:"field_of_study"`
-	Descricao     string           `json:"description"`
-	Nivel         NivelGrupoEstudo `json:"level"`
-	TotalMembros  int              `json:"member_count"`
-	RotuloHorario string           `json:"schedule_label"`
+	Identificador string                   `json:"id"`
+	AutorID       string                   `json:"author_id"`
+	Autor         comum.PerfilPublicoAutor `json:"author"`
+	Titulo        string                   `json:"title"`
+	AreaEstudo    string                   `json:"field_of_study"`
+	Descricao     string                   `json:"description"`
+	Nivel         NivelGrupoEstudo         `json:"level"`
+	TotalMembros  int                      `json:"member_count"`
+	RotuloHorario string                   `json:"schedule_label"`
 }
 
 type MensagemChatGrupo struct {

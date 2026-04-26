@@ -20,7 +20,7 @@ func NovoUniversidadeRepository(pool *pgxpool.Pool) universidadeService.Universi
 }
 
 func (repositorio *universidadeRepositoryPostgres) ListarAvisosUniversidade(contexto context.Context) ([]universidadeService.AvisoUniversidade, error) {
-	const sql = `SELECT id::text, titulo, description FROM avisos_universidade ORDER BY criado_em DESC`
+	const sql = `SELECT id::text, titulo, description, criado_por::text FROM avisos_universidade ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,10 @@ func (repositorio *universidadeRepositoryPostgres) ListarAvisosUniversidade(cont
 	var out []universidadeService.AvisoUniversidade
 	for rows.Next() {
 		var a universidadeService.AvisoUniversidade
-		if err := rows.Scan(&a.Identificador, &a.Titulo, &a.Descricao); err != nil {
+		if err := rows.Scan(&a.Identificador, &a.Titulo, &a.Descricao, &a.AutorID); err != nil {
+			return nil, err
+		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -78,13 +81,16 @@ func (repositorio *universidadeRepositoryPostgres) RemoverAvisoUniversidadeComoA
 }
 
 func (repositorio *universidadeRepositoryPostgres) obterAvisoUniversidade(contexto context.Context, id string) (universidadeService.AvisoUniversidade, bool, error) {
-	const sql = `SELECT id::text, titulo, description FROM avisos_universidade WHERE id=$1::uuid`
+	const sql = `SELECT id::text, titulo, description, criado_por::text FROM avisos_universidade WHERE id=$1::uuid`
 	var a universidadeService.AvisoUniversidade
-	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&a.Identificador, &a.Titulo, &a.Descricao)
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&a.Identificador, &a.Titulo, &a.Descricao, &a.AutorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return universidadeService.AvisoUniversidade{}, false, nil
 		}
+		return universidadeService.AvisoUniversidade{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
 		return universidadeService.AvisoUniversidade{}, false, err
 	}
 	return a, true, nil
@@ -126,4 +132,12 @@ func (repositorio *universidadeRepositoryPostgres) removerAvisoUniversidadeComPe
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }

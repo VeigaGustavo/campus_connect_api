@@ -20,7 +20,7 @@ func NovoLeituraRepository(pool *pgxpool.Pool) leituraService.LeituraRepository 
 }
 
 func (repositorio *leituraRepositoryPostgres) ListarLeituraSemanal(contexto context.Context) ([]leituraService.ItemLeituraSemanal, error) {
-	const sql = `SELECT id::text, kind::text, titulo, source, excerpt, image_url, meta_label FROM leitura_semanal ORDER BY criado_em DESC`
+	const sql = `SELECT id::text, kind::text, titulo, source, excerpt, image_url, meta_label, criado_por::text FROM leitura_semanal ORDER BY criado_em DESC`
 	rows, err := repositorio.pool.Query(contexto, sql)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,10 @@ func (repositorio *leituraRepositoryPostgres) ListarLeituraSemanal(contexto cont
 	for rows.Next() {
 		var it leituraService.ItemLeituraSemanal
 		var k string
-		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta); err != nil {
+		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta, &it.AutorID); err != nil {
+			return nil, err
+		}
+		if err := carregarAutorPublico(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
 			return nil, err
 		}
 		it.Tipo = leituraService.TipoItemLeitura(k)
@@ -80,14 +83,17 @@ func (repositorio *leituraRepositoryPostgres) RemoverLeituraSemanalComoAdmin(con
 }
 
 func (repositorio *leituraRepositoryPostgres) obterLeituraSemanal(contexto context.Context, id string) (leituraService.ItemLeituraSemanal, bool, error) {
-	const sql = `SELECT id::text, kind::text, titulo, source, excerpt, image_url, meta_label FROM leitura_semanal WHERE id=$1::uuid`
+	const sql = `SELECT id::text, kind::text, titulo, source, excerpt, image_url, meta_label, criado_por::text FROM leitura_semanal WHERE id=$1::uuid`
 	var it leituraService.ItemLeituraSemanal
 	var k string
-	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta)
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta, &it.AutorID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return leituraService.ItemLeituraSemanal{}, false, nil
 		}
+		return leituraService.ItemLeituraSemanal{}, false, err
+	}
+	if err := carregarAutorPublico(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
 		return leituraService.ItemLeituraSemanal{}, false, err
 	}
 	it.Tipo = leituraService.TipoItemLeitura(k)
@@ -131,4 +137,12 @@ func (repositorio *leituraRepositoryPostgres) removerLeituraSemanalComPerfil(con
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
+}
+
+func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }

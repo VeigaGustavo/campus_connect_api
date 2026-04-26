@@ -7,6 +7,9 @@ import (
 	discoverHandler "campus_connect_api/internal/modulos/discover/handler"
 	discoverRepository "campus_connect_api/internal/modulos/discover/repository"
 	discoverService "campus_connect_api/internal/modulos/discover/service"
+	feedHandler "campus_connect_api/internal/modulos/feed/handler"
+	feedRepository "campus_connect_api/internal/modulos/feed/repository"
+	feedService "campus_connect_api/internal/modulos/feed/service"
 	empresaHandler "campus_connect_api/internal/modulos/empresa/handler"
 	empresaRepository "campus_connect_api/internal/modulos/empresa/repository"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
@@ -41,6 +44,7 @@ import (
 
 func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	servicoDiscover := discoverService.NovoDiscoverService(discoverRepository.NovoDiscoverRepository(pool))
+	servicoFeed := feedService.NovoFeedService(feedRepository.NovoFeedRepository(pool))
 	servicoEmpresa := empresaService.NovoEmpresaService(empresaRepository.NovoEmpresaRepository(pool))
 	servicoEvento := eventoService.NovoEventoService(eventoRepository.NovoEventoRepository(pool))
 	servicoGrupo := grupoService.NovoGrupoService(grupoRepository.NovoGrupoRepository(pool))
@@ -65,6 +69,7 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	segurancaHandler.NovoSegurancaHTTPHandler(servicoSeguranca).RegistrarRotasGIN(api)
 	usuarioHandler.NovoUsuarioHTTPHandler(servicoUsuario).RegistrarRotasGIN(api)
 	discoverHandler.NovoDiscoverHTTPHandler(servicoDiscover).RegistrarRotasGIN(api)
+	feedHandler.NovoFeedHTTPHandler(servicoFeed).RegistrarRotasGIN(api)
 	empresaHandler.NovoEmpresaHTTPHandler(servicoEmpresa).RegistrarRotasGIN(api)
 	eventoHandler.NovoEventoHTTPHandler(servicoEvento).RegistrarRotasGIN(api)
 	grupoHandler.NovoGrupoHTTPHandler(servicoGrupo).RegistrarRotasGIN(api)
