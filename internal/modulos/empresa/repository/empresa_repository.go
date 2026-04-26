@@ -7,6 +7,7 @@ import (
 	"time"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -85,7 +86,7 @@ RETURNING id::text`
 	if err != nil {
 		return empresaService.Oportunidade{}, err
 	}
-	if err := inserirCartaoFeedTx(contexto, tx, "internship", "dsc-"+id, corpo.Titulo, corpo.NomeEmpresa, corpo.DescricaoCurta, "Prazo", corpo.PrazoCandidatura, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+	if err := repositoryutil.InserirCartaoFeedTx(contexto, tx, comum.FeedKindEstagio, "dsc-"+id, corpo.Titulo, corpo.NomeEmpresa, corpo.DescricaoCurta, "Prazo", corpo.PrazoCandidatura, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
 		return empresaService.Oportunidade{}, err
 	}
 	if err := tx.Commit(contexto); err != nil {
@@ -99,24 +100,25 @@ RETURNING id::text`
 }
 
 func (repositorio *empresaRepositoryPostgres) AtualizarOportunidade(contexto context.Context, id, usuarioID string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	if err := repositorio.garantirDonoOportunidade(contexto, id, usuarioID); err != nil {
-		return empresaService.Oportunidade{}, err
-	}
-	return repositorio.atualizarOportunidade(contexto, id, corpo)
+	return repositorio.atualizarOportunidadeComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
 func (repositorio *empresaRepositoryPostgres) AtualizarOportunidadeComoAdmin(contexto context.Context, id string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	return repositorio.atualizarOportunidade(contexto, id, corpo)
+	return repositorio.atualizarOportunidadeComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
 func (repositorio *empresaRepositoryPostgres) RemoverOportunidade(contexto context.Context, id, usuarioID string) error {
-	if err := repositorio.garantirDonoOportunidade(contexto, id, usuarioID); err != nil {
-		return err
-	}
-	return repositorio.RemoverOportunidadeComoAdmin(contexto, id)
+	return repositorio.removerOportunidadeComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
 }
 
 func (repositorio *empresaRepositoryPostgres) RemoverOportunidadeComoAdmin(contexto context.Context, id string) error {
+	return repositorio.removerOportunidadeComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
+}
+
+func (repositorio *empresaRepositoryPostgres) removerOportunidadeComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
+		return err
+	}
 	tx, err := repositorio.pool.Begin(contexto)
 	if err != nil {
 		return err
@@ -133,7 +135,10 @@ func (repositorio *empresaRepositoryPostgres) RemoverOportunidadeComoAdmin(conte
 	return tx.Commit(contexto)
 }
 
-func (repositorio *empresaRepositoryPostgres) atualizarOportunidade(contexto context.Context, id string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+func (repositorio *empresaRepositoryPostgres) atualizarOportunidadeComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
+		return empresaService.Oportunidade{}, err
+	}
 	deadline, err := time.Parse(time.RFC3339, corpo.PrazoCandidatura)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
@@ -176,21 +181,6 @@ WHERE id=$1::uuid`
 	return op, nil
 }
 
-func (repositorio *empresaRepositoryPostgres) garantirDonoOportunidade(contexto context.Context, id, usuarioID string) error {
-	var dono string
-	err := repositorio.pool.QueryRow(contexto, `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`, id).Scan(&dono)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return comum.ErrNaoEncontrado
-		}
-		return err
-	}
-	if dono != usuarioID {
-		return comum.ErrProibido
-	}
-	return nil
-}
-
 func scanLinhaOportunidade(row interface{ Scan(dest ...any) error }) (empresaService.Oportunidade, error) {
 	var o empresaService.Oportunidade
 	var deadline time.Time
@@ -214,18 +204,6 @@ func scanLinhaOportunidade(row interface{ Scan(dest ...any) error }) (empresaSer
 	return o, nil
 }
 
-func inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
-	if scope != "group" {
-		scope = "all"
-		groupID = ""
-	}
-	const sql = `
-INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
-	return err
-}
-
 func atualizarCartaoFeedOportunidadeTx(ctx context.Context, tx pgx.Tx, ref string, corpo empresaService.RequisicaoCriarOportunidade) error {
 	const sql = `
 UPDATE feed_cartoes SET
@@ -233,11 +211,4 @@ UPDATE feed_cartoes SET
 WHERE kind='internship' AND reference_id=$1`
 	_, err := tx.Exec(ctx, sql, ref, corpo.Titulo, corpo.NomeEmpresa, corpo.DescricaoCurta, "Prazo", corpo.PrazoCandidatura)
 	return err
-}
-
-func nullSeVazio(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }

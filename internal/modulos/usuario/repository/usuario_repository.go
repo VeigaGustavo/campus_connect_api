@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	comum "campus_connect_api/internal/modulos/comum"
 	usuarioService "campus_connect_api/internal/modulos/usuario/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -34,10 +35,10 @@ RETURNING id::text, nome, email
 }
 
 func (repositorio *usuarioRepositoryPostgres) CriarUsuarioComCadastro(contexto context.Context, requisicao usuarioService.RequisicaoCadastroUsuario) (*usuarioService.UsuarioInterno, error) {
-	perfilCodigo := "padrao"
+	perfilCodigo := comum.PerfilPadrao
 	switch requisicao.TipoPerfil {
 	case "estudante":
-		perfilCodigo = "padrao"
+		perfilCodigo = comum.PerfilPadrao
 	case "comunidade":
 		perfilCodigo = "comunidade"
 	case "empresa":

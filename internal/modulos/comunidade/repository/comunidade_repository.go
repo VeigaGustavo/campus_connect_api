@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	comunidadeService "campus_connect_api/internal/modulos/comunidade/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -50,19 +51,19 @@ func (repositorio *comunidadeRepositoryPostgres) InserirComunidade(contexto cont
 }
 
 func (repositorio *comunidadeRepositoryPostgres) AtualizarComunidade(contexto context.Context, id, usuarioID string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
-	return repositorio.atualizarComunidadeComPerfil(contexto, id, usuarioID, "padrao", corpo)
+	return repositorio.atualizarComunidadeComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
 func (repositorio *comunidadeRepositoryPostgres) AtualizarComunidadeComoAdmin(contexto context.Context, id string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
-	return repositorio.atualizarComunidadeComPerfil(contexto, id, "", "sistema_admin", corpo)
+	return repositorio.atualizarComunidadeComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
 func (repositorio *comunidadeRepositoryPostgres) RemoverComunidade(contexto context.Context, id, usuarioID string) error {
-	return repositorio.removerComunidadeComPerfil(contexto, id, usuarioID, "padrao")
+	return repositorio.removerComunidadeComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
 }
 
 func (repositorio *comunidadeRepositoryPostgres) RemoverComunidadeComoAdmin(contexto context.Context, id string) error {
-	return repositorio.removerComunidadeComPerfil(contexto, id, "", "sistema_admin")
+	return repositorio.removerComunidadeComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
 }
 
 func (repositorio *comunidadeRepositoryPostgres) obterComunidade(contexto context.Context, id string) (comunidadeService.Comunidade, bool, error) {
@@ -79,7 +80,7 @@ func (repositorio *comunidadeRepositoryPostgres) obterComunidade(contexto contex
 }
 
 func (repositorio *comunidadeRepositoryPostgres) atualizarComunidadeComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "comunidades", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM comunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return comunidadeService.Comunidade{}, err
 	}
 	const upd = `UPDATE comunidades SET nome=$2, kind=$3, description=$4, atualizado_em=now() WHERE id=$1::uuid`
@@ -98,7 +99,7 @@ func (repositorio *comunidadeRepositoryPostgres) atualizarComunidadeComPerfil(co
 }
 
 func (repositorio *comunidadeRepositoryPostgres) removerComunidadeComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "comunidades", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM comunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return err
 	}
 	ct, err := repositorio.pool.Exec(contexto, `DELETE FROM comunidades WHERE id=$1::uuid`, id)
@@ -107,31 +108,6 @@ func (repositorio *comunidadeRepositoryPostgres) removerComunidadeComPerfil(cont
 	}
 	if ct.RowsAffected() == 0 {
 		return comum.ErrNaoEncontrado
-	}
-	return nil
-}
-
-func garantirDonoTabela(ctx context.Context, pool *pgxpool.Pool, tabela, id, usuarioID, perfil string) error {
-	if perfil == "sistema_admin" {
-		return nil
-	}
-	var q string
-	switch tabela {
-	case "comunidades":
-		q = `SELECT criado_por::text FROM comunidades WHERE id=$1::uuid`
-	default:
-		return comum.ErrProibido
-	}
-	var dono string
-	err := pool.QueryRow(ctx, q, id).Scan(&dono)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return comum.ErrNaoEncontrado
-		}
-		return err
-	}
-	if dono != usuarioID {
-		return comum.ErrProibido
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -74,7 +75,7 @@ VALUES ($1,$2,$3,$4::varchar,$5,$6,$7::uuid) RETURNING id::text`
 	if err := tx.QueryRow(contexto, ins, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, 0, corpo.RotuloHorario, criadoPor).Scan(&id); err != nil {
 		return grupoService.GrupoEstudo{}, err
 	}
-	if err := inserirCartaoFeedTx(contexto, tx, "study_group", "dsc-"+id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+	if err := repositoryutil.InserirCartaoFeedTx(contexto, tx, comum.FeedKindGrupoEstudo, "dsc-"+id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
 		return grupoService.GrupoEstudo{}, err
 	}
 	if err := tx.Commit(contexto); err != nil {
@@ -88,19 +89,19 @@ VALUES ($1,$2,$3,$4::varchar,$5,$6,$7::uuid) RETURNING id::text`
 }
 
 func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.atualizarGrupoComPerfil(contexto, id, usuarioID, "padrao", corpo)
+	return repositorio.atualizarGrupoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
 func (repositorio *grupoRepositoryPostgres) AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.atualizarGrupoComPerfil(contexto, id, "", "sistema_admin", corpo)
+	return repositorio.atualizarGrupoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
 func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID string) error {
-	return repositorio.removerGrupoComPerfil(contexto, id, usuarioID, "padrao")
+	return repositorio.removerGrupoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
 }
 
 func (repositorio *grupoRepositoryPostgres) RemoverGrupoComoAdmin(contexto context.Context, id string) error {
-	return repositorio.removerGrupoComPerfil(contexto, id, "", "sistema_admin")
+	return repositorio.removerGrupoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarMensagensGrupo(grupoID string) []grupoService.MensagemChatGrupo {
@@ -209,7 +210,7 @@ func (repositorio *grupoRepositoryPostgres) obterGrupo(contexto context.Context,
 }
 
 func (repositorio *grupoRepositoryPostgres) atualizarGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "grupos_estudo", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return grupoService.GrupoEstudo{}, err
 	}
 	tx, err := repositorio.pool.Begin(contexto)
@@ -238,7 +239,7 @@ func (repositorio *grupoRepositoryPostgres) atualizarGrupoComPerfil(contexto con
 }
 
 func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "grupos_estudo", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return err
 	}
 	tx, err := repositorio.pool.Begin(contexto)
@@ -255,48 +256,4 @@ func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto conte
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
-}
-
-func garantirDonoTabela(ctx context.Context, pool *pgxpool.Pool, tabela, id, usuarioID, perfil string) error {
-	if perfil == "sistema_admin" {
-		return nil
-	}
-	var q string
-	switch tabela {
-	case "grupos_estudo":
-		q = `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`
-	default:
-		return comum.ErrProibido
-	}
-	var dono string
-	err := pool.QueryRow(ctx, q, id).Scan(&dono)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return comum.ErrNaoEncontrado
-		}
-		return err
-	}
-	if dono != usuarioID {
-		return comum.ErrProibido
-	}
-	return nil
-}
-
-func inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
-	if scope != "group" {
-		scope = "all"
-		groupID = ""
-	}
-	const sql = `
-INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
-	return err
-}
-
-func nullSeVazio(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	eventoService "campus_connect_api/internal/modulos/evento/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -54,7 +55,7 @@ func (repositorio *eventoRepositoryPostgres) InserirEvento(contexto context.Cont
 	if err := tx.QueryRow(contexto, ins, corpo.Titulo, corpo.Descricao, t, corpo.Local, corpo.Organizador, criadoPor).Scan(&id); err != nil {
 		return eventoService.EventoCampus{}, err
 	}
-	if err := inserirCartaoFeedTx(contexto, tx, "event", "dsc-"+id, corpo.Titulo, corpo.Local, corpo.Descricao, "Início", corpo.InicioEm, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+	if err := repositoryutil.InserirCartaoFeedTx(contexto, tx, comum.FeedKindEvento, "dsc-"+id, corpo.Titulo, corpo.Local, corpo.Descricao, "Início", corpo.InicioEm, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
 		return eventoService.EventoCampus{}, err
 	}
 	if err := tx.Commit(contexto); err != nil {
@@ -68,19 +69,19 @@ func (repositorio *eventoRepositoryPostgres) InserirEvento(contexto context.Cont
 }
 
 func (repositorio *eventoRepositoryPostgres) AtualizarEvento(contexto context.Context, id, usuarioID string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
-	return repositorio.atualizarEventoComPerfil(contexto, id, usuarioID, "padrao", corpo)
+	return repositorio.atualizarEventoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
 func (repositorio *eventoRepositoryPostgres) AtualizarEventoComoAdmin(contexto context.Context, id string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
-	return repositorio.atualizarEventoComPerfil(contexto, id, "", "sistema_admin", corpo)
+	return repositorio.atualizarEventoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
 func (repositorio *eventoRepositoryPostgres) RemoverEvento(contexto context.Context, id, usuarioID string) error {
-	return repositorio.removerEventoComPerfil(contexto, id, usuarioID, "padrao")
+	return repositorio.removerEventoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
 }
 
 func (repositorio *eventoRepositoryPostgres) RemoverEventoComoAdmin(contexto context.Context, id string) error {
-	return repositorio.removerEventoComPerfil(contexto, id, "", "sistema_admin")
+	return repositorio.removerEventoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
 }
 
 func (repositorio *eventoRepositoryPostgres) obterEvento(contexto context.Context, id string) (eventoService.EventoCampus, bool, error) {
@@ -99,7 +100,7 @@ func (repositorio *eventoRepositoryPostgres) obterEvento(contexto context.Contex
 }
 
 func (repositorio *eventoRepositoryPostgres) atualizarEventoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "eventos", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM eventos WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return eventoService.EventoCampus{}, err
 	}
 	t, err := time.Parse(time.RFC3339, corpo.InicioEm)
@@ -132,7 +133,7 @@ func (repositorio *eventoRepositoryPostgres) atualizarEventoComPerfil(contexto c
 }
 
 func (repositorio *eventoRepositoryPostgres) removerEventoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "eventos", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM eventos WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return err
 	}
 	tx, err := repositorio.pool.Begin(contexto)
@@ -149,48 +150,4 @@ func (repositorio *eventoRepositoryPostgres) removerEventoComPerfil(contexto con
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
-}
-
-func garantirDonoTabela(ctx context.Context, pool *pgxpool.Pool, tabela, id, usuarioID, perfil string) error {
-	if perfil == "sistema_admin" {
-		return nil
-	}
-	var q string
-	switch tabela {
-	case "eventos":
-		q = `SELECT criado_por::text FROM eventos WHERE id=$1::uuid`
-	default:
-		return comum.ErrProibido
-	}
-	var dono string
-	err := pool.QueryRow(ctx, q, id).Scan(&dono)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return comum.ErrNaoEncontrado
-		}
-		return err
-	}
-	if dono != usuarioID {
-		return comum.ErrProibido
-	}
-	return nil
-}
-
-func inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
-	if scope != "group" {
-		scope = "all"
-		groupID = ""
-	}
-	const sql = `
-INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
-	return err
-}
-
-func nullSeVazio(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }

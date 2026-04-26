@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	leituraService "campus_connect_api/internal/modulos/leitura/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -49,7 +50,7 @@ func (repositorio *leituraRepositoryPostgres) InserirLeituraSemanal(contexto con
 	if err := tx.QueryRow(contexto, ins, corpo.Tipo, corpo.Titulo, corpo.Fonte, corpo.Resumo, corpo.URLImagem, corpo.RotuloMeta, criadoPor).Scan(&id); err != nil {
 		return leituraService.ItemLeituraSemanal{}, err
 	}
-	if err := inserirCartaoFeedTx(contexto, tx, "reading", "dsc-"+id, corpo.Titulo, corpo.Fonte, corpo.Resumo, "Leitura", corpo.Tipo, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+	if err := repositoryutil.InserirCartaoFeedTx(contexto, tx, comum.FeedKindLeitura, "dsc-"+id, corpo.Titulo, corpo.Fonte, corpo.Resumo, "Leitura", corpo.Tipo, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
 		return leituraService.ItemLeituraSemanal{}, err
 	}
 	if err := tx.Commit(contexto); err != nil {
@@ -63,19 +64,19 @@ func (repositorio *leituraRepositoryPostgres) InserirLeituraSemanal(contexto con
 }
 
 func (repositorio *leituraRepositoryPostgres) AtualizarLeituraSemanal(contexto context.Context, id, usuarioID string, corpo leituraService.RequisicaoLeituraSemanal) (leituraService.ItemLeituraSemanal, error) {
-	return repositorio.atualizarLeituraSemanalComPerfil(contexto, id, usuarioID, "padrao", corpo)
+	return repositorio.atualizarLeituraSemanalComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
 func (repositorio *leituraRepositoryPostgres) AtualizarLeituraSemanalComoAdmin(contexto context.Context, id string, corpo leituraService.RequisicaoLeituraSemanal) (leituraService.ItemLeituraSemanal, error) {
-	return repositorio.atualizarLeituraSemanalComPerfil(contexto, id, "", "sistema_admin", corpo)
+	return repositorio.atualizarLeituraSemanalComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
 func (repositorio *leituraRepositoryPostgres) RemoverLeituraSemanal(contexto context.Context, id, usuarioID string) error {
-	return repositorio.removerLeituraSemanalComPerfil(contexto, id, usuarioID, "padrao")
+	return repositorio.removerLeituraSemanalComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
 }
 
 func (repositorio *leituraRepositoryPostgres) RemoverLeituraSemanalComoAdmin(contexto context.Context, id string) error {
-	return repositorio.removerLeituraSemanalComPerfil(contexto, id, "", "sistema_admin")
+	return repositorio.removerLeituraSemanalComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
 }
 
 func (repositorio *leituraRepositoryPostgres) obterLeituraSemanal(contexto context.Context, id string) (leituraService.ItemLeituraSemanal, bool, error) {
@@ -94,7 +95,7 @@ func (repositorio *leituraRepositoryPostgres) obterLeituraSemanal(contexto conte
 }
 
 func (repositorio *leituraRepositoryPostgres) atualizarLeituraSemanalComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo leituraService.RequisicaoLeituraSemanal) (leituraService.ItemLeituraSemanal, error) {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "leitura_semanal", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM leitura_semanal WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return leituraService.ItemLeituraSemanal{}, err
 	}
 	ct, err := repositorio.pool.Exec(contexto, `UPDATE leitura_semanal SET kind=$2::varchar, titulo=$3, source=$4, excerpt=$5, image_url=$6, meta_label=$7, atualizado_em=now() WHERE id=$1::uuid`,
@@ -113,7 +114,7 @@ func (repositorio *leituraRepositoryPostgres) atualizarLeituraSemanalComPerfil(c
 }
 
 func (repositorio *leituraRepositoryPostgres) removerLeituraSemanalComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
-	if err := garantirDonoTabela(contexto, repositorio.pool, "leitura_semanal", id, usuarioID, perfilCodigo); err != nil {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM leitura_semanal WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return err
 	}
 	tx, err := repositorio.pool.Begin(contexto)
@@ -130,48 +131,4 @@ func (repositorio *leituraRepositoryPostgres) removerLeituraSemanalComPerfil(con
 		return comum.ErrNaoEncontrado
 	}
 	return tx.Commit(contexto)
-}
-
-func garantirDonoTabela(ctx context.Context, pool *pgxpool.Pool, tabela, id, usuarioID, perfil string) error {
-	if perfil == "sistema_admin" {
-		return nil
-	}
-	var q string
-	switch tabela {
-	case "leitura_semanal":
-		q = `SELECT criado_por::text FROM leitura_semanal WHERE id=$1::uuid`
-	default:
-		return comum.ErrProibido
-	}
-	var dono string
-	err := pool.QueryRow(ctx, q, id).Scan(&dono)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return comum.ErrNaoEncontrado
-		}
-		return err
-	}
-	if dono != usuarioID {
-		return comum.ErrProibido
-	}
-	return nil
-}
-
-func inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
-	if scope != "group" {
-		scope = "all"
-		groupID = ""
-	}
-	const sql = `
-INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
-	return err
-}
-
-func nullSeVazio(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
