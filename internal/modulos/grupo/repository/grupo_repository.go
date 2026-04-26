@@ -13,7 +13,7 @@ import (
 )
 
 type grupoRepositoryPostgres struct {
-	store database.PersistenciaGrupo
+	store *database.Postgres
 
 	mutex              sync.RWMutex
 	chatGrupo          map[string][]grupoService.MensagemChatGrupo

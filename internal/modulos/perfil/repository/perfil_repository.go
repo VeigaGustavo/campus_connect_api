@@ -9,7 +9,7 @@ import (
 )
 
 type perfilRepositoryPostgres struct {
-	store database.PersistenciaFeedPerfil
+	store *database.Postgres
 }
 
 func NovoPerfilRepository(pool *pgxpool.Pool) perfilService.PerfilRepository {

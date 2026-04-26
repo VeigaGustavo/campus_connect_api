@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
+	comum "campus_connect_api/internal/modulos/comum"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	universidadeService "campus_connect_api/internal/modulos/universidade/service"
 	"campus_connect_api/internal/respostas"
@@ -90,9 +90,9 @@ func (handler *UniversidadeHTTPHandler) DELETEAvisoUniversidade(resposta http.Re
 
 func (handler *UniversidadeHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
+	case errors.Is(err, comum.ErrNaoEncontrado):
 		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
+	case errors.Is(err, comum.ErrProibido):
 		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
 	default:
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())

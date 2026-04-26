@@ -9,7 +9,7 @@ import (
 )
 
 type eventoRepositoryPostgres struct {
-	store database.PersistenciaEvento
+	store *database.Postgres
 }
 
 func NovoEventoRepository(pool *pgxpool.Pool) eventoService.EventoRepository {

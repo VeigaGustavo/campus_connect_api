@@ -9,7 +9,7 @@ import (
 )
 
 type comunidadeRepositoryPostgres struct {
-	store database.PersistenciaComunidade
+	store *database.Postgres
 }
 
 func NovoComunidadeRepository(pool *pgxpool.Pool) comunidadeService.ComunidadeRepository {

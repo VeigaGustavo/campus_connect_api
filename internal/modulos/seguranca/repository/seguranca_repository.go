@@ -5,12 +5,13 @@ import (
 	"errors"
 
 	"campus_connect_api/internal/infra/database"
+	comum "campus_connect_api/internal/modulos/comum"
 	segurancaService "campus_connect_api/internal/modulos/seguranca/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type segurancaRepositoryPostgres struct {
-	store database.PersistenciaUsuario
+	store *database.Postgres
 }
 
 func NovoSegurancaRepository(pool *pgxpool.Pool) segurancaService.SegurancaRepository {
@@ -20,7 +21,7 @@ func NovoSegurancaRepository(pool *pgxpool.Pool) segurancaService.SegurancaRepos
 func (repositorio *segurancaRepositoryPostgres) Autenticar(contexto context.Context, email, senha string) (*segurancaService.UsuarioAutenticado, error) {
 	usuario, err := repositorio.store.Autenticar(contexto, email, senha)
 	if err != nil {
-		if errors.Is(err, database.ErrNaoEncontrado) {
+		if errors.Is(err, comum.ErrNaoEncontrado) {
 			return nil, segurancaService.ErrAutenticacaoInvalida
 		}
 		return nil, err

@@ -2,7 +2,7 @@ package database
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-// Postgres implementa Armazenamento com PostgreSQL.
+// Postgres encapsula acesso PostgreSQL.
 type Postgres struct {
 	pool *pgxpool.Pool
 }

@@ -9,7 +9,7 @@ import (
 )
 
 type discoverRepositoryPostgres struct {
-	store database.PersistenciaFeedPerfil
+	store *database.Postgres
 }
 
 func NovoDiscoverRepository(pool *pgxpool.Pool) discoverService.DiscoverRepository {

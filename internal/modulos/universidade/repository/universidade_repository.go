@@ -9,7 +9,7 @@ import (
 )
 
 type universidadeRepositoryPostgres struct {
-	store database.PersistenciaAvisoUniversidade
+	store *database.Postgres
 }
 
 func NovoUniversidadeRepository(pool *pgxpool.Pool) universidadeService.UniversidadeRepository {
