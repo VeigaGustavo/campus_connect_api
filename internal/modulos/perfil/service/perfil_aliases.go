@@ -12,4 +12,8 @@ const (
 
 type InteressePerfil = model.InteressePerfil
 type LinhaAtividadePerfil = model.LinhaAtividadePerfil
+type DestaqueComunidadePerfil = model.DestaqueComunidadePerfil
 type PerfilUsuario = model.PerfilUsuario
+type RequisicaoAtualizarPerfil = model.RequisicaoAtualizarPerfil
+type ItemHistoricoPerfil = model.ItemHistoricoPerfil
+type RespostaHistoricoPerfil = model.RespostaHistoricoPerfil
