@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	projetoService "campus_connect_api/internal/modulos/projeto/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type projetoRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoProjetoRepository(pool *pgxpool.Pool) projetoService.ProjetoRepository {
-	return &projetoRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoProjetoRepository(store *database.Postgres) projetoService.ProjetoRepository {
+	return &projetoRepositoryPostgres{store: store}
 }
 
 func (repositorio *projetoRepositoryPostgres) ListarProjetos(contexto context.Context) ([]projetoService.Projeto, error) {

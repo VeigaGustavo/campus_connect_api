@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	comunidadeService "campus_connect_api/internal/modulos/comunidade/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type comunidadeRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoComunidadeRepository(pool *pgxpool.Pool) comunidadeService.ComunidadeRepository {
-	return &comunidadeRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoComunidadeRepository(store *database.Postgres) comunidadeService.ComunidadeRepository {
+	return &comunidadeRepositoryPostgres{store: store}
 }
 
 func (repositorio *comunidadeRepositoryPostgres) ListarComunidades(contexto context.Context) ([]comunidadeService.Comunidade, error) {

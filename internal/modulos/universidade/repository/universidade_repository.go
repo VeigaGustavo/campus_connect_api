@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	universidadeService "campus_connect_api/internal/modulos/universidade/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type universidadeRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoUniversidadeRepository(pool *pgxpool.Pool) universidadeService.UniversidadeRepository {
-	return &universidadeRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoUniversidadeRepository(store *database.Postgres) universidadeService.UniversidadeRepository {
+	return &universidadeRepositoryPostgres{store: store}
 }
 
 func (repositorio *universidadeRepositoryPostgres) ListarAvisosUniversidade(contexto context.Context) ([]universidadeService.AvisoUniversidade, error) {

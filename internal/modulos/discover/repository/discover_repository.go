@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	discoverService "campus_connect_api/internal/modulos/discover/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type discoverRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoDiscoverRepository(pool *pgxpool.Pool) discoverService.DiscoverRepository {
-	return &discoverRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoDiscoverRepository(store *database.Postgres) discoverService.DiscoverRepository {
+	return &discoverRepositoryPostgres{store: store}
 }
 
 func (repositorio *discoverRepositoryPostgres) FeedDescobrir(contexto context.Context, filtro string, gruposDoUsuario []string) ([]discoverService.ItemDescobrir, error) {

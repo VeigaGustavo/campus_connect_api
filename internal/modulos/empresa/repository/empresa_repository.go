@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type empresaRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoEmpresaRepository(pool *pgxpool.Pool) empresaService.EmpresaRepository {
-	return &empresaRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoEmpresaRepository(store *database.Postgres) empresaService.EmpresaRepository {
+	return &empresaRepositoryPostgres{store: store}
 }
 
 func (repositorio *empresaRepositoryPostgres) ListarOportunidades(contexto context.Context) ([]empresaService.Oportunidade, error) {

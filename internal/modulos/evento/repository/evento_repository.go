@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	eventoService "campus_connect_api/internal/modulos/evento/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type eventoRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoEventoRepository(pool *pgxpool.Pool) eventoService.EventoRepository {
-	return &eventoRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoEventoRepository(store *database.Postgres) eventoService.EventoRepository {
+	return &eventoRepositoryPostgres{store: store}
 }
 
 func (repositorio *eventoRepositoryPostgres) ListarEventos(contexto context.Context) ([]eventoService.EventoCampus, error) {

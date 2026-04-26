@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	usuarioService "campus_connect_api/internal/modulos/usuario/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type usuarioRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoUsuarioRepository(pool *pgxpool.Pool) usuarioService.UsuarioRepository {
-	return &usuarioRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoUsuarioRepository(store *database.Postgres) usuarioService.UsuarioRepository {
+	return &usuarioRepositoryPostgres{store: store}
 }
 
 func (repositorio *usuarioRepositoryPostgres) CriarUsuario(contexto context.Context, nome, email, senha, perfilCodigo string) (*usuarioService.UsuarioInterno, error) {

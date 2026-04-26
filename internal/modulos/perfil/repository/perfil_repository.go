@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	perfilService "campus_connect_api/internal/modulos/perfil/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type perfilRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoPerfilRepository(pool *pgxpool.Pool) perfilService.PerfilRepository {
-	return &perfilRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoPerfilRepository(store *database.Postgres) perfilService.PerfilRepository {
+	return &perfilRepositoryPostgres{store: store}
 }
 
 func (repositorio *perfilRepositoryPostgres) PerfilUsuario(contexto context.Context, usuarioID string) (perfilService.PerfilUsuario, error) {

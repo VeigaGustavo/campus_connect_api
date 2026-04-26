@@ -5,15 +5,14 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	leituraService "campus_connect_api/internal/modulos/leitura/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type leituraRepositoryPostgres struct {
 	store *database.Postgres
 }
 
-func NovoLeituraRepository(pool *pgxpool.Pool) leituraService.LeituraRepository {
-	return &leituraRepositoryPostgres{store: database.NovoPostgres(pool)}
+func NovoLeituraRepository(store *database.Postgres) leituraService.LeituraRepository {
+	return &leituraRepositoryPostgres{store: store}
 }
 
 func (repositorio *leituraRepositoryPostgres) ListarLeituraSemanal(contexto context.Context) ([]leituraService.ItemLeituraSemanal, error) {

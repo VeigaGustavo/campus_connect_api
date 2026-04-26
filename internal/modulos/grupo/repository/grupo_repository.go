@@ -9,7 +9,6 @@ import (
 
 	"campus_connect_api/internal/infra/database"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type grupoRepositoryPostgres struct {
@@ -23,9 +22,9 @@ type grupoRepositoryPostgres struct {
 	leiturasAssociadas map[string][]grupoService.AssociacaoGrupoLeitura
 }
 
-func NovoGrupoRepository(pool *pgxpool.Pool) grupoService.GrupoRepository {
+func NovoGrupoRepository(store *database.Postgres) grupoService.GrupoRepository {
 	return &grupoRepositoryPostgres{
-		store:              database.NovoPostgres(pool),
+		store:              store,
 		chatGrupo:          map[string][]grupoService.MensagemChatGrupo{},
 		arquivosGrupo:      map[string][]grupoService.ArquivoGrupo{},
 		reunioesGrupo:      map[string][]grupoService.ReuniaoGrupo{},

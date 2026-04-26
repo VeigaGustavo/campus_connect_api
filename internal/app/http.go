@@ -1,6 +1,7 @@
 package app
 
 import (
+	"campus_connect_api/internal/infra/database"
 	comunidadeHandler "campus_connect_api/internal/modulos/comunidade/handler"
 	comunidadeRepository "campus_connect_api/internal/modulos/comunidade/repository"
 	comunidadeService "campus_connect_api/internal/modulos/comunidade/service"
@@ -40,17 +41,18 @@ import (
 )
 
 func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
-	servicoDiscover := discoverService.NovoDiscoverService(discoverRepository.NovoDiscoverRepository(pool))
-	servicoEmpresa := empresaService.NovoEmpresaService(empresaRepository.NovoEmpresaRepository(pool))
-	servicoEvento := eventoService.NovoEventoService(eventoRepository.NovoEventoRepository(pool))
-	servicoGrupo := grupoService.NovoGrupoService(grupoRepository.NovoGrupoRepository(pool))
-	servicoComunidade := comunidadeService.NovoComunidadeService(comunidadeRepository.NovoComunidadeRepository(pool))
-	servicoUniversidade := universidadeService.NovoUniversidadeService(universidadeRepository.NovoUniversidadeRepository(pool))
-	servicoLeitura := leituraService.NovoLeituraService(leituraRepository.NovoLeituraRepository(pool))
-	servicoProjeto := projetoService.NovoProjetoService(projetoRepository.NovoProjetoRepository(pool))
-	servicoPerfil := perfilService.NovoPerfilService(perfilRepository.NovoPerfilRepository(pool))
-	servicoSeguranca := segurancaService.NovoSegurancaService(segurancaRepository.NovoSegurancaRepository(pool))
-	servicoUsuario := usuarioService.NovoUsuarioService(usuarioRepository.NovoUsuarioRepository(pool))
+	store := database.NovoPostgres(pool)
+	servicoDiscover := discoverService.NovoDiscoverService(discoverRepository.NovoDiscoverRepository(store))
+	servicoEmpresa := empresaService.NovoEmpresaService(empresaRepository.NovoEmpresaRepository(store))
+	servicoEvento := eventoService.NovoEventoService(eventoRepository.NovoEventoRepository(store))
+	servicoGrupo := grupoService.NovoGrupoService(grupoRepository.NovoGrupoRepository(store))
+	servicoComunidade := comunidadeService.NovoComunidadeService(comunidadeRepository.NovoComunidadeRepository(store))
+	servicoUniversidade := universidadeService.NovoUniversidadeService(universidadeRepository.NovoUniversidadeRepository(store))
+	servicoLeitura := leituraService.NovoLeituraService(leituraRepository.NovoLeituraRepository(store))
+	servicoProjeto := projetoService.NovoProjetoService(projetoRepository.NovoProjetoRepository(store))
+	servicoPerfil := perfilService.NovoPerfilService(perfilRepository.NovoPerfilRepository(store))
+	servicoSeguranca := segurancaService.NovoSegurancaService(segurancaRepository.NovoSegurancaRepository(store))
+	servicoUsuario := usuarioService.NovoUsuarioService(usuarioRepository.NovoUsuarioRepository(store))
 
 	engine := gin.New()
 	engine.Use(gin.Recovery())
