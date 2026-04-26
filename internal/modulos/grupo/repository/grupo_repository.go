@@ -4,15 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
-	"campus_connect_api/internal/infra/database"
+	comum "campus_connect_api/internal/modulos/comum"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type grupoRepositoryPostgres struct {
-	store *database.Postgres
+	pool *pgxpool.Pool
 
 	mutex              sync.RWMutex
 	chatGrupo          map[string][]grupoService.MensagemChatGrupo
@@ -22,9 +25,9 @@ type grupoRepositoryPostgres struct {
 	leiturasAssociadas map[string][]grupoService.AssociacaoGrupoLeitura
 }
 
-func NovoGrupoRepository(store *database.Postgres) grupoService.GrupoRepository {
+func NovoGrupoRepository(pool *pgxpool.Pool) grupoService.GrupoRepository {
 	return &grupoRepositoryPostgres{
-		store:              store,
+		pool:               pool,
 		chatGrupo:          map[string][]grupoService.MensagemChatGrupo{},
 		arquivosGrupo:      map[string][]grupoService.ArquivoGrupo{},
 		reunioesGrupo:      map[string][]grupoService.ReuniaoGrupo{},
@@ -40,27 +43,64 @@ func novoIdentificador(prefixo string) string {
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarGrupos(contexto context.Context) ([]grupoService.GrupoEstudo, error) {
-	return repositorio.store.ListarGrupos(contexto)
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label FROM grupos_estudo ORDER BY criado_em DESC`
+	rows, err := repositorio.pool.Query(contexto, sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []grupoService.GrupoEstudo
+	for rows.Next() {
+		var g grupoService.GrupoEstudo
+		var lvl string
+		if err := rows.Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario); err != nil {
+			return nil, err
+		}
+		g.Nivel = grupoService.NivelGrupoEstudo(lvl)
+		out = append(out, g)
+	}
+	return out, rows.Err()
 }
 
 func (repositorio *grupoRepositoryPostgres) InserirGrupo(contexto context.Context, criadoPor string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.InserirGrupo(contexto, criadoPor, corpo)
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	const ins = `INSERT INTO grupos_estudo (titulo, field_of_study, description, level, member_count, schedule_label, criado_por)
+VALUES ($1,$2,$3,$4::varchar,$5,$6,$7::uuid) RETURNING id::text`
+	var id string
+	if err := tx.QueryRow(contexto, ins, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, 0, corpo.RotuloHorario, criadoPor).Scan(&id); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	if err := inserirCartaoFeedTx(contexto, tx, "study_group", "dsc-"+id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	if err := tx.Commit(contexto); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	g, ok, err := repositorio.obterGrupo(contexto, id)
+	if err != nil || !ok {
+		return grupoService.GrupoEstudo{}, errors.New("falha ao recarregar grupo")
+	}
+	return g, nil
 }
 
 func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.AtualizarGrupo(contexto, id, usuarioID, corpo)
+	return repositorio.atualizarGrupoComPerfil(contexto, id, usuarioID, "padrao", corpo)
 }
 
 func (repositorio *grupoRepositoryPostgres) AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.AtualizarGrupoComoAdmin(contexto, id, corpo)
+	return repositorio.atualizarGrupoComPerfil(contexto, id, "", "sistema_admin", corpo)
 }
 
 func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID string) error {
-	return repositorio.store.RemoverGrupo(contexto, id, usuarioID)
+	return repositorio.removerGrupoComPerfil(contexto, id, usuarioID, "padrao")
 }
 
 func (repositorio *grupoRepositoryPostgres) RemoverGrupoComoAdmin(contexto context.Context, id string) error {
-	return repositorio.store.RemoverGrupoComoAdmin(contexto, id)
+	return repositorio.removerGrupoComPerfil(contexto, id, "", "sistema_admin")
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarMensagensGrupo(grupoID string) []grupoService.MensagemChatGrupo {
@@ -151,4 +191,112 @@ func (repositorio *grupoRepositoryPostgres) AssociarLeituraGrupo(grupoID, leitur
 	repositorio.leiturasAssociadas[grupoID] = append(repositorio.leiturasAssociadas[grupoID], associacao)
 	repositorio.mutex.Unlock()
 	return associacao
+}
+
+func (repositorio *grupoRepositoryPostgres) obterGrupo(contexto context.Context, id string) (grupoService.GrupoEstudo, bool, error) {
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label FROM grupos_estudo WHERE id=$1::uuid`
+	var g grupoService.GrupoEstudo
+	var lvl string
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return grupoService.GrupoEstudo{}, false, nil
+		}
+		return grupoService.GrupoEstudo{}, false, err
+	}
+	g.Nivel = grupoService.NivelGrupoEstudo(lvl)
+	return g, true, nil
+}
+
+func (repositorio *grupoRepositoryPostgres) atualizarGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	if err := garantirDonoTabela(contexto, repositorio.pool, "grupos_estudo", id, usuarioID, perfilCodigo); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	const upd = `UPDATE grupos_estudo SET titulo=$2, field_of_study=$3, description=$4, level=$5::varchar, schedule_label=$6, atualizado_em=now() WHERE id=$1::uuid`
+	ct, err := tx.Exec(contexto, upd, id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, corpo.RotuloHorario)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	if ct.RowsAffected() == 0 {
+		return grupoService.GrupoEstudo{}, comum.ErrNaoEncontrado
+	}
+	_, _ = tx.Exec(contexto, `UPDATE feed_cartoes SET titulo=$2, subtitle=$3, excerpt=$4, meta_primary=$5, meta_secondary=$6 WHERE kind='study_group' AND reference_id=$1`,
+		id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel)
+	if err := tx.Commit(contexto); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	g, ok, err := repositorio.obterGrupo(contexto, id)
+	if err != nil || !ok {
+		return grupoService.GrupoEstudo{}, errors.New("falha ao recarregar grupo")
+	}
+	return g, nil
+}
+
+func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
+	if err := garantirDonoTabela(contexto, repositorio.pool, "grupos_estudo", id, usuarioID, perfilCodigo); err != nil {
+		return err
+	}
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	_, _ = tx.Exec(contexto, `DELETE FROM feed_cartoes WHERE kind='study_group' AND reference_id=$1`, id)
+	ct, err := tx.Exec(contexto, `DELETE FROM grupos_estudo WHERE id=$1::uuid`, id)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return comum.ErrNaoEncontrado
+	}
+	return tx.Commit(contexto)
+}
+
+func garantirDonoTabela(ctx context.Context, pool *pgxpool.Pool, tabela, id, usuarioID, perfil string) error {
+	if perfil == "sistema_admin" {
+		return nil
+	}
+	var q string
+	switch tabela {
+	case "grupos_estudo":
+		q = `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`
+	default:
+		return comum.ErrProibido
+	}
+	var dono string
+	err := pool.QueryRow(ctx, q, id).Scan(&dono)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return comum.ErrNaoEncontrado
+		}
+		return err
+	}
+	if dono != usuarioID {
+		return comum.ErrProibido
+	}
+	return nil
+}
+
+func inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
+	if scope != "group" {
+		scope = "all"
+		groupID = ""
+	}
+	const sql = `
+INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
+	return err
+}
+
+func nullSeVazio(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
