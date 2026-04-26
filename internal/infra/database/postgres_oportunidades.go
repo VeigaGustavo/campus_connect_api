@@ -117,8 +117,8 @@ RETURNING id::text`
 	return op, nil
 }
 
-func (p *Postgres) AtualizarOportunidade(ctx context.Context, id, usuarioID, perfilCodigo string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	if err := p.garantirDonoOuAdminOportunidade(ctx, id, usuarioID, perfilCodigo); err != nil {
+func (p *Postgres) AtualizarOportunidade(ctx context.Context, id, usuarioID string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+	if err := p.garantirDonoOportunidade(ctx, id, usuarioID); err != nil {
 		return empresaService.Oportunidade{}, err
 	}
 	deadline, err := time.Parse(time.RFC3339, corpo.PrazoCandidatura)
@@ -163,10 +163,57 @@ WHERE id=$1::uuid`
 	return op, nil
 }
 
-func (p *Postgres) RemoverOportunidade(ctx context.Context, id, usuarioID, perfilCodigo string) error {
-	if err := p.garantirDonoOuAdminOportunidade(ctx, id, usuarioID, perfilCodigo); err != nil {
+func (p *Postgres) AtualizarOportunidadeComoAdmin(ctx context.Context, id string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+	deadline, err := time.Parse(time.RFC3339, corpo.PrazoCandidatura)
+	if err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	reqs, err := json.Marshal(corpo.Requisitos)
+	if err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	const upd = `
+UPDATE oportunidades SET
+  titulo=$2, company_name=$3, short_description=$4, full_description=$5, apply_deadline=$6,
+  work_location=$7, type_label=$8, requirements=$9::jsonb, atualizado_em=now()
+WHERE id=$1::uuid`
+	ct, err := tx.Exec(ctx, upd, id,
+		corpo.Titulo, corpo.NomeEmpresa, corpo.DescricaoCurta, corpo.DescricaoCompleta,
+		deadline, corpo.ModalidadeLocal, corpo.RotuloTipo, reqs,
+	)
+	if err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	if ct.RowsAffected() == 0 {
+		return empresaService.Oportunidade{}, ErrNaoEncontrado
+	}
+	if err := p.atualizarCartaoFeedOportunidadeTx(ctx, tx, id, corpo); err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return empresaService.Oportunidade{}, err
+	}
+	op, ok, err := p.ObterOportunidade(ctx, id)
+	if err != nil || !ok {
+		return empresaService.Oportunidade{}, errors.New("falha ao recarregar oportunidade")
+	}
+	return op, nil
+}
+
+func (p *Postgres) RemoverOportunidade(ctx context.Context, id, usuarioID string) error {
+	if err := p.garantirDonoOportunidade(ctx, id, usuarioID); err != nil {
 		return err
 	}
+	return p.RemoverOportunidadeComoAdmin(ctx, id)
+}
+
+func (p *Postgres) RemoverOportunidadeComoAdmin(ctx context.Context, id string) error {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -183,10 +230,7 @@ func (p *Postgres) RemoverOportunidade(ctx context.Context, id, usuarioID, perfi
 	return tx.Commit(ctx)
 }
 
-func (p *Postgres) garantirDonoOuAdminOportunidade(ctx context.Context, id, usuarioID, perfil string) error {
-	if perfil == "sistema_admin" {
-		return nil
-	}
+func (p *Postgres) garantirDonoOportunidade(ctx context.Context, id, usuarioID string) error {
 	const sql = `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`
 	var dono string
 	err := p.pool.QueryRow(ctx, sql, id).Scan(&dono)
@@ -200,32 +244,4 @@ func (p *Postgres) garantirDonoOuAdminOportunidade(ctx context.Context, id, usua
 		return ErrProibido
 	}
 	return nil
-}
-
-func (p *Postgres) inserirCartaoFeedTx(ctx context.Context, tx pgx.Tx, kind, cartaoID, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, groupID string) error {
-	if scope != "group" {
-		scope = "all"
-		groupID = ""
-	}
-	const sql = `
-INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
-	_, err := tx.Exec(ctx, sql, cartaoID, kind, titulo, subtitulo, excerpt, metaPri, metaSec, ref, scope, nullSeVazio(groupID))
-	return err
-}
-
-func (p *Postgres) atualizarCartaoFeedOportunidadeTx(ctx context.Context, tx pgx.Tx, ref string, corpo empresaService.RequisicaoCriarOportunidade) error {
-	const sql = `
-UPDATE feed_cartoes SET
-  titulo=$2, subtitle=$3, excerpt=$4, meta_primary=$5, meta_secondary=$6
-WHERE kind='internship' AND reference_id=$1`
-	_, err := tx.Exec(ctx, sql, ref, corpo.Titulo, corpo.NomeEmpresa, corpo.DescricaoCurta, "Prazo", corpo.PrazoCandidatura)
-	return err
-}
-
-func nullSeVazio(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }

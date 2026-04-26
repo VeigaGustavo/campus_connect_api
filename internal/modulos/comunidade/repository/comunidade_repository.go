@@ -23,10 +23,18 @@ func (repositorio *comunidadeRepositoryPostgres) InserirComunidade(contexto cont
 	return repositorio.store.InserirComunidade(contexto, criadoPor, corpo)
 }
 
-func (repositorio *comunidadeRepositoryPostgres) AtualizarComunidade(contexto context.Context, id, usuarioID, perfil string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
-	return repositorio.store.AtualizarComunidade(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *comunidadeRepositoryPostgres) AtualizarComunidade(contexto context.Context, id, usuarioID string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
+	return repositorio.store.AtualizarComunidade(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *comunidadeRepositoryPostgres) RemoverComunidade(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverComunidade(contexto, id, usuarioID, perfil)
+func (repositorio *comunidadeRepositoryPostgres) AtualizarComunidadeComoAdmin(contexto context.Context, id string, corpo comunidadeService.RequisicaoCriarComunidade) (comunidadeService.Comunidade, error) {
+	return repositorio.store.AtualizarComunidadeComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *comunidadeRepositoryPostgres) RemoverComunidade(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverComunidade(contexto, id, usuarioID)
+}
+
+func (repositorio *comunidadeRepositoryPostgres) RemoverComunidadeComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverComunidadeComoAdmin(contexto, id)
 }

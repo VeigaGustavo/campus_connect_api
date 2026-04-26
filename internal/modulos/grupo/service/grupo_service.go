@@ -21,11 +21,17 @@ func (servico *GrupoService) CriarGrupo(contexto context.Context, criadoPor stri
 }
 
 func (servico *GrupoService) AtualizarGrupo(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error) {
-	return servico.repositorio.AtualizarGrupo(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarGrupoComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarGrupo(contexto, id, usuarioID, corpo)
 }
 
 func (servico *GrupoService) RemoverGrupo(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverGrupo(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverGrupoComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverGrupo(contexto, id, usuarioID)
 }
 
 func (servico *GrupoService) ListarMensagensGrupo(grupoID string) []MensagemChatGrupo {

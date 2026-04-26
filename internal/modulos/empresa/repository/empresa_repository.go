@@ -27,10 +27,18 @@ func (repositorio *empresaRepositoryPostgres) InserirOportunidade(contexto conte
 	return repositorio.store.InserirOportunidade(contexto, criadoPor, corpo)
 }
 
-func (repositorio *empresaRepositoryPostgres) AtualizarOportunidade(contexto context.Context, id, usuarioID, perfil string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	return repositorio.store.AtualizarOportunidade(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *empresaRepositoryPostgres) AtualizarOportunidade(contexto context.Context, id, usuarioID string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+	return repositorio.store.AtualizarOportunidade(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *empresaRepositoryPostgres) RemoverOportunidade(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverOportunidade(contexto, id, usuarioID, perfil)
+func (repositorio *empresaRepositoryPostgres) AtualizarOportunidadeComoAdmin(contexto context.Context, id string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
+	return repositorio.store.AtualizarOportunidadeComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *empresaRepositoryPostgres) RemoverOportunidade(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverOportunidade(contexto, id, usuarioID)
+}
+
+func (repositorio *empresaRepositoryPostgres) RemoverOportunidadeComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverOportunidadeComoAdmin(contexto, id)
 }

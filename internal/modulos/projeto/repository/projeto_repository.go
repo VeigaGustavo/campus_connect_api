@@ -23,10 +23,18 @@ func (repositorio *projetoRepositoryPostgres) InserirProjeto(contexto context.Co
 	return repositorio.store.InserirProjeto(contexto, criadoPor, corpo)
 }
 
-func (repositorio *projetoRepositoryPostgres) AtualizarProjeto(contexto context.Context, id, usuarioID, perfil string, corpo projetoService.RequisicaoProjeto) (projetoService.Projeto, error) {
-	return repositorio.store.AtualizarProjeto(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *projetoRepositoryPostgres) AtualizarProjeto(contexto context.Context, id, usuarioID string, corpo projetoService.RequisicaoProjeto) (projetoService.Projeto, error) {
+	return repositorio.store.AtualizarProjeto(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *projetoRepositoryPostgres) RemoverProjeto(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverProjeto(contexto, id, usuarioID, perfil)
+func (repositorio *projetoRepositoryPostgres) AtualizarProjetoComoAdmin(contexto context.Context, id string, corpo projetoService.RequisicaoProjeto) (projetoService.Projeto, error) {
+	return repositorio.store.AtualizarProjetoComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *projetoRepositoryPostgres) RemoverProjeto(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverProjeto(contexto, id, usuarioID)
+}
+
+func (repositorio *projetoRepositoryPostgres) RemoverProjetoComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverProjetoComoAdmin(contexto, id)
 }

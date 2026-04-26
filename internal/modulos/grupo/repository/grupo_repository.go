@@ -47,12 +47,20 @@ func (repositorio *grupoRepositoryPostgres) InserirGrupo(contexto context.Contex
 	return repositorio.store.InserirGrupo(contexto, criadoPor, corpo)
 }
 
-func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID, perfil string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.AtualizarGrupo(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	return repositorio.store.AtualizarGrupo(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverGrupo(contexto, id, usuarioID, perfil)
+func (repositorio *grupoRepositoryPostgres) AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	return repositorio.store.AtualizarGrupoComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverGrupo(contexto, id, usuarioID)
+}
+
+func (repositorio *grupoRepositoryPostgres) RemoverGrupoComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverGrupoComoAdmin(contexto, id)
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarMensagensGrupo(grupoID string) []grupoService.MensagemChatGrupo {

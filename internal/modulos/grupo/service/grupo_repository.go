@@ -7,8 +7,10 @@ import (
 type GrupoRepository interface {
 	ListarGrupos(contexto context.Context) ([]GrupoEstudo, error)
 	InserirGrupo(contexto context.Context, criadoPor string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error)
-	AtualizarGrupo(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error)
-	RemoverGrupo(contexto context.Context, id, usuarioID, perfil string) error
+	AtualizarGrupo(contexto context.Context, id, usuarioID string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error)
+	AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error)
+	RemoverGrupo(contexto context.Context, id, usuarioID string) error
+	RemoverGrupoComoAdmin(contexto context.Context, id string) error
 	ListarMensagensGrupo(grupoID string) []MensagemChatGrupo
 	AdicionarMensagemGrupo(grupoID, autorID, texto string) MensagemChatGrupo
 	ListarArquivosGrupo(grupoID string) []ArquivoGrupo

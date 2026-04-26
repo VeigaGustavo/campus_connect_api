@@ -23,10 +23,18 @@ func (repositorio *eventoRepositoryPostgres) InserirEvento(contexto context.Cont
 	return repositorio.store.InserirEvento(contexto, criadoPor, corpo)
 }
 
-func (repositorio *eventoRepositoryPostgres) AtualizarEvento(contexto context.Context, id, usuarioID, perfil string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
-	return repositorio.store.AtualizarEvento(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *eventoRepositoryPostgres) AtualizarEvento(contexto context.Context, id, usuarioID string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
+	return repositorio.store.AtualizarEvento(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *eventoRepositoryPostgres) RemoverEvento(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverEvento(contexto, id, usuarioID, perfil)
+func (repositorio *eventoRepositoryPostgres) AtualizarEventoComoAdmin(contexto context.Context, id string, corpo eventoService.RequisicaoEvento) (eventoService.EventoCampus, error) {
+	return repositorio.store.AtualizarEventoComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *eventoRepositoryPostgres) RemoverEvento(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverEvento(contexto, id, usuarioID)
+}
+
+func (repositorio *eventoRepositoryPostgres) RemoverEventoComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverEventoComoAdmin(contexto, id)
 }

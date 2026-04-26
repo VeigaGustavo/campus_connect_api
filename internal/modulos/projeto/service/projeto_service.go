@@ -21,9 +21,15 @@ func (servico *ProjetoService) CriarProjeto(contexto context.Context, criadoPor 
 }
 
 func (servico *ProjetoService) AtualizarProjeto(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoProjeto) (Projeto, error) {
-	return servico.repositorio.AtualizarProjeto(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarProjetoComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarProjeto(contexto, id, usuarioID, corpo)
 }
 
 func (servico *ProjetoService) RemoverProjeto(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverProjeto(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverProjetoComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverProjeto(contexto, id, usuarioID)
 }

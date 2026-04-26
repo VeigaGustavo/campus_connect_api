@@ -21,9 +21,15 @@ func (servico *EventoService) CriarEvento(contexto context.Context, criadoPor st
 }
 
 func (servico *EventoService) AtualizarEvento(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoEvento) (EventoCampus, error) {
-	return servico.repositorio.AtualizarEvento(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarEventoComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarEvento(contexto, id, usuarioID, corpo)
 }
 
 func (servico *EventoService) RemoverEvento(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverEvento(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverEventoComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverEvento(contexto, id, usuarioID)
 }

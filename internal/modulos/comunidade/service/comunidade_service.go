@@ -21,9 +21,15 @@ func (servico *ComunidadeService) CriarComunidade(contexto context.Context, cria
 }
 
 func (servico *ComunidadeService) AtualizarComunidade(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarComunidade) (Comunidade, error) {
-	return servico.repositorio.AtualizarComunidade(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarComunidadeComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarComunidade(contexto, id, usuarioID, corpo)
 }
 
 func (servico *ComunidadeService) RemoverComunidade(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverComunidade(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverComunidadeComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverComunidade(contexto, id, usuarioID)
 }

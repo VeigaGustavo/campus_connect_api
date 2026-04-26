@@ -21,9 +21,15 @@ func (servico *LeituraService) CriarLeituraSemanal(contexto context.Context, cri
 }
 
 func (servico *LeituraService) AtualizarLeituraSemanal(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoLeituraSemanal) (ItemLeituraSemanal, error) {
-	return servico.repositorio.AtualizarLeituraSemanal(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarLeituraSemanalComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarLeituraSemanal(contexto, id, usuarioID, corpo)
 }
 
 func (servico *LeituraService) RemoverLeituraSemanal(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverLeituraSemanal(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverLeituraSemanalComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverLeituraSemanal(contexto, id, usuarioID)
 }

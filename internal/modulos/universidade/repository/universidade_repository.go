@@ -23,10 +23,18 @@ func (repositorio *universidadeRepositoryPostgres) InserirAvisoUniversidade(cont
 	return repositorio.store.InserirAvisoUniversidade(contexto, criadoPor, corpo)
 }
 
-func (repositorio *universidadeRepositoryPostgres) AtualizarAvisoUniversidade(contexto context.Context, id, usuarioID, perfil string, corpo universidadeService.RequisicaoCriarAvisoUniversidade) (universidadeService.AvisoUniversidade, error) {
-	return repositorio.store.AtualizarAvisoUniversidade(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *universidadeRepositoryPostgres) AtualizarAvisoUniversidade(contexto context.Context, id, usuarioID string, corpo universidadeService.RequisicaoCriarAvisoUniversidade) (universidadeService.AvisoUniversidade, error) {
+	return repositorio.store.AtualizarAvisoUniversidade(contexto, id, usuarioID, corpo)
 }
 
-func (repositorio *universidadeRepositoryPostgres) RemoverAvisoUniversidade(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverAvisoUniversidade(contexto, id, usuarioID, perfil)
+func (repositorio *universidadeRepositoryPostgres) AtualizarAvisoUniversidadeComoAdmin(contexto context.Context, id string, corpo universidadeService.RequisicaoCriarAvisoUniversidade) (universidadeService.AvisoUniversidade, error) {
+	return repositorio.store.AtualizarAvisoUniversidadeComoAdmin(contexto, id, corpo)
+}
+
+func (repositorio *universidadeRepositoryPostgres) RemoverAvisoUniversidade(contexto context.Context, id, usuarioID string) error {
+	return repositorio.store.RemoverAvisoUniversidade(contexto, id, usuarioID)
+}
+
+func (repositorio *universidadeRepositoryPostgres) RemoverAvisoUniversidadeComoAdmin(contexto context.Context, id string) error {
+	return repositorio.store.RemoverAvisoUniversidadeComoAdmin(contexto, id)
 }
