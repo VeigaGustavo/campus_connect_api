@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,9 +19,9 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
 	contexto := context.Background()
-	urlBancoDados := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	urlBancoDados := resolverDatabaseURL()
 	if urlBancoDados == "" {
-		log.Fatal("DATABASE_URL é obrigatório; configure o PostgreSQL e rode as migrações em db/init")
+		log.Fatal("DATABASE_URL ou DATABASE_URL_FILE é obrigatório; configure o PostgreSQL e rode as migrações em db/init")
 	}
 	pool, err := banco.NovoPool(contexto, urlBancoDados)
 	if err != nil {
@@ -54,4 +56,27 @@ func resolverEnderecoEscuta() string {
 		return ":" + porta
 	}
 	return ":8080"
+}
+
+func resolverDatabaseURL() string {
+	if url := strings.TrimSpace(os.Getenv("DATABASE_URL")); url != "" {
+		return url
+	}
+
+	arquivoSecret := strings.TrimSpace(os.Getenv("DATABASE_URL_FILE"))
+	if arquivoSecret == "" {
+		return ""
+	}
+
+	dados, err := os.ReadFile(filepath.Clean(arquivoSecret))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Printf("DATABASE_URL_FILE não encontrado: %s", arquivoSecret)
+			return ""
+		}
+		log.Printf("erro ao ler DATABASE_URL_FILE: %v", err)
+		return ""
+	}
+
+	return strings.TrimSpace(string(dados))
 }

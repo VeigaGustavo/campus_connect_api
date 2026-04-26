@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-campus_connect}
+      POSTGRES_USER: ${POSTGRES_USER:-campus_connect}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    secrets:
+      - postgres_password
+    networks:
+      - campus_overlay
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+
+secrets:
+  postgres_password:
+    external: true
+
+volumes:
+  postgres_data:
+
+networks:
+  campus_overlay:
+    name: campus_overlay_shared
+    driver: overlay
+    attachable: true

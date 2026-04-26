@@ -1,0 +1,9 @@
+.git
+.gitignore
+.idea
+.cursor
+tmp
+bin
+dist
+**/*.log
+terraform

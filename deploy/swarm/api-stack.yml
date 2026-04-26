@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  api:
+    image: ${API_IMAGE:-campus_connect_api:latest}
+    environment:
+      LISTEN_ADDR: ":8080"
+      DATABASE_URL_FILE: /run/secrets/database_url
+    ports:
+      - target: 8080
+        published: ${API_PUBLISHED_PORT:-8080}
+        protocol: tcp
+        mode: ingress
+    secrets:
+      - database_url
+    networks:
+      - campus_overlay
+    deploy:
+      mode: replicated
+      replicas: ${API_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+
+secrets:
+  database_url:
+    external: true
+
+networks:
+  campus_overlay:
+    external: true
+    name: campus_overlay_shared
