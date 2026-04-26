@@ -1,5 +1,7 @@
 # Terraform EC2 (SSH Key)
 
+Este diretório fica em `infra/terraform`.
+
 Infra base para subir uma EC2 com acesso por chave SSH (sem login/senha).
 
 ## Como usar

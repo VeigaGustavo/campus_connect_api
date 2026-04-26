@@ -1,5 +1,7 @@
 # Docker Swarm com Secrets (stacks separadas)
 
+Este diretório fica em `infra/swarm`.
+
 Estrutura para deploy em duas stacks independentes:
 
 - `campus-db` com PostgreSQL (`db-stack.yml`)
