@@ -32,7 +32,7 @@ func (repositorio *universidadeRepositoryPostgres) ListarAvisosUniversidade(cont
 		if err := rows.Scan(&a.Identificador, &a.Titulo, &a.Descricao, &a.AutorID); err != nil {
 			return nil, err
 		}
-		if err := carregarAutorPublico(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -90,7 +90,7 @@ func (repositorio *universidadeRepositoryPostgres) obterAvisoUniversidade(contex
 		}
 		return universidadeService.AvisoUniversidade{}, false, err
 	}
-	if err := carregarAutorPublico(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, a.AutorID, &a.Autor); err != nil {
 		return universidadeService.AvisoUniversidade{}, false, err
 	}
 	return a, true, nil
@@ -134,10 +134,3 @@ func (repositorio *universidadeRepositoryPostgres) removerAvisoUniversidadeComPe
 	return tx.Commit(contexto)
 }
 
-func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
-}

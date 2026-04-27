@@ -19,12 +19,6 @@ func NovoPerfilHTTPHandler(servicoPerfil *perfilService.PerfilService) *PerfilHT
 	return &PerfilHTTPHandler{servicoPerfil: servicoPerfil}
 }
 
-func (handler *PerfilHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /profile", auth.ObrigarAutenticacao(handler.GETPerfil))
-	mux.HandleFunc("PUT /profile", auth.ObrigarAutenticacao(handler.PUTPerfil))
-	mux.HandleFunc("GET /profile/history", auth.ObrigarAutenticacao(handler.GETHistoricoPerfil))
-}
-
 func (handler *PerfilHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/profile", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.GETPerfil)))
 	grupo.PUT("/profile", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.PUTPerfil)))

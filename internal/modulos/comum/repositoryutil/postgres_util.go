@@ -46,3 +46,12 @@ func NullSeVazio(s string) any {
 	}
 	return s
 }
+
+// CarregarPerfilPublicoAutor preenche nome, avatar e codigo de perfil do usuario (uso em listagens de conteudo).
+func CarregarPerfilPublicoAutor(ctx context.Context, pool *pgxpool.Pool, usuarioID string, destino *comum.PerfilPublicoAutor) error {
+	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
+FROM usuarios u
+JOIN perfis_usuario pf ON pf.id = u.perfil_id
+WHERE u.id=$1::uuid`
+	return pool.QueryRow(ctx, sql, usuarioID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
+}

@@ -20,13 +20,6 @@ func NovoLeituraHTTPHandler(servicoLeitura *leituraService.LeituraService) *Leit
 	return &LeituraHTTPHandler{servicoLeitura: servicoLeitura}
 }
 
-func (handler *LeituraHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /reading/weekly", handler.GETLeituraSemanal)
-	mux.HandleFunc("POST /reading/weekly", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.POSTCriarLeituraSemanal))
-	mux.HandleFunc("PUT /reading/weekly/{id}", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.PUTLeituraSemanal))
-	mux.HandleFunc("DELETE /reading/weekly/{id}", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.DELETELeituraSemanal))
-}
-
 func (handler *LeituraHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/reading/weekly", respostas.AdaptadorHTTP(handler.GETLeituraSemanal))
 	grupo.POST("/reading/weekly", respostas.AdaptadorHTTP(auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.POSTCriarLeituraSemanal)))

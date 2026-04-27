@@ -20,13 +20,6 @@ func NovoUniversidadeHTTPHandler(servicoUniversidade *universidadeService.Univer
 	return &UniversidadeHTTPHandler{servicoUniversidade: servicoUniversidade}
 }
 
-func (handler *UniversidadeHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /university/notices", handler.GETAvisosUniversidade)
-	mux.HandleFunc("POST /university/notices", auth.ExigirPerfis("universidade", "sistema_admin")(handler.POSTCriarAvisoUniversidade))
-	mux.HandleFunc("PUT /university/notices/{id}", auth.ExigirPerfis("universidade", "sistema_admin")(handler.PUTAvisoUniversidade))
-	mux.HandleFunc("DELETE /university/notices/{id}", auth.ExigirPerfis("universidade", "sistema_admin")(handler.DELETEAvisoUniversidade))
-}
-
 func (handler *UniversidadeHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/university/notices", respostas.AdaptadorHTTP(handler.GETAvisosUniversidade))
 	grupo.POST("/university/notices", respostas.AdaptadorHTTP(auth.ExigirPerfis("universidade", "sistema_admin")(handler.POSTCriarAvisoUniversidade)))

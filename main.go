@@ -5,18 +5,24 @@ import (
 	"errors"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
+	"syscall"
 
 	"campus_connect_api/internal/app"
 	"campus_connect_api/internal/banco"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	carregarEnvLocal()
 
 	contexto := context.Background()
 	urlBancoDados := resolverDatabaseURL()
@@ -33,8 +39,14 @@ func main() {
 	engine := app.NewGinEngine(pool)
 	endereco := resolverEnderecoEscuta()
 
+	listener, err := escutarHTTP(endereco)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer listener.Close()
+
 	srv := &http.Server{
-		Addr:              endereco,
+		Addr:              listener.Addr().String(),
 		Handler:           engine,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -42,9 +54,44 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	log.Printf("campus_connect_api escutando em %s (API em /api/)", endereco)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	log.Printf("campus_connect_api escutando em %s (API em /api/)", listener.Addr())
+	if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
+	}
+}
+
+func carregarEnvLocal() {
+	// If env is already provided externally, keep it as source of truth.
+	if strings.TrimSpace(os.Getenv("DATABASE_URL")) != "" || strings.TrimSpace(os.Getenv("DATABASE_URL_FILE")) != "" {
+		return
+	}
+
+	candidatos := []string{".env.local", ".env"}
+	if _, arquivoFonte, _, ok := runtime.Caller(0); ok {
+		dirFonte := filepath.Dir(arquivoFonte)
+		candidatos = append(candidatos,
+			filepath.Join(dirFonte, ".env.local"),
+			filepath.Join(dirFonte, ".env"),
+		)
+	}
+
+	visitados := make(map[string]struct{}, len(candidatos))
+	for _, caminho := range candidatos {
+		if caminho == "" {
+			continue
+		}
+		abs, err := filepath.Abs(caminho)
+		if err != nil {
+			abs = caminho
+		}
+		if _, existe := visitados[abs]; existe {
+			continue
+		}
+		visitados[abs] = struct{}{}
+
+		if err := godotenv.Load(abs); err != nil && !errors.Is(err, os.ErrNotExist) {
+			log.Printf("aviso: erro ao carregar arquivo de ambiente %s: %v", abs, err)
+		}
 	}
 }
 
@@ -58,12 +105,26 @@ func resolverEnderecoEscuta() string {
 	return ":8080"
 }
 
+func escutarHTTP(endereco string) (net.Listener, error) {
+	listener, err := net.Listen("tcp", endereco)
+	if err == nil {
+		return listener, nil
+	}
+
+	if endereco == ":8080" && errors.Is(err, syscall.EADDRINUSE) {
+		log.Printf("porta 8080 ocupada; usando uma porta livre automática para esta execucao")
+		return net.Listen("tcp", ":0")
+	}
+
+	return nil, err
+}
+
 func resolverDatabaseURL() string {
-	if url := strings.TrimSpace(os.Getenv("DATABASE_URL")); url != "" {
+	if url := normalizarValorEnv(os.Getenv("DATABASE_URL")); url != "" {
 		return url
 	}
 
-	arquivoSecret := strings.TrimSpace(os.Getenv("DATABASE_URL_FILE"))
+	arquivoSecret := normalizarValorEnv(os.Getenv("DATABASE_URL_FILE"))
 	if arquivoSecret == "" {
 		return ""
 	}
@@ -80,3 +141,12 @@ func resolverDatabaseURL() string {
 
 	return strings.TrimSpace(string(dados))
 }
+
+func normalizarValorEnv(valor string) string {
+	valor = strings.TrimSpace(valor)
+	if strings.HasPrefix(valor, "=") {
+		valor = strings.TrimSpace(strings.TrimPrefix(valor, "="))
+	}
+	return valor
+}
+

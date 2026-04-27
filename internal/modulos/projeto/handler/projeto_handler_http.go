@@ -20,13 +20,6 @@ func NovoProjetoHTTPHandler(servicoProjeto *projetoService.ProjetoService) *Proj
 	return &ProjetoHTTPHandler{servicoProjeto: servicoProjeto}
 }
 
-func (handler *ProjetoHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /projects", handler.GETProjetos)
-	mux.HandleFunc("POST /projects", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTCriarProjeto))
-	mux.HandleFunc("PUT /projects/{id}", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.PUTProjeto))
-	mux.HandleFunc("DELETE /projects/{id}", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.DELETEProjeto))
-}
-
 func (handler *ProjetoHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/projects", respostas.AdaptadorHTTP(handler.GETProjetos))
 	grupo.POST("/projects", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTCriarProjeto)))

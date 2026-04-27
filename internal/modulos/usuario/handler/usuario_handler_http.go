@@ -19,11 +19,6 @@ func NovoUsuarioHTTPHandler(servicoUsuario *usuarioService.UsuarioService) *Usua
 	return &UsuarioHTTPHandler{servicoUsuario: servicoUsuario}
 }
 
-func (handler *UsuarioHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("POST /auth/register", handler.POSTCadastroUsuarioPublico)
-	mux.HandleFunc("POST /admin/users", auth.ExigirPerfis("sistema_admin")(handler.POSTCriarUsuarioAdmin))
-}
-
 func (handler *UsuarioHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.POST("/auth/register", respostas.AdaptadorHTTP(handler.POSTCadastroUsuarioPublico))
 	grupo.POST("/admin/users", respostas.AdaptadorHTTP(auth.ExigirPerfis("sistema_admin")(handler.POSTCriarUsuarioAdmin)))

@@ -21,17 +21,6 @@ func NovoFeedHTTPHandler(servicoFeed *feedService.FeedService) *FeedHTTPHandler 
 	return &FeedHTTPHandler{servicoFeed: servicoFeed}
 }
 
-func (handler *FeedHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /feed", handler.GETFeed)
-	mux.HandleFunc("POST /feed/posts", auth.ExigirPerfis("padrao", "comunidade", "empresa", "universidade", "sistema_admin")(handler.POSTCriarPost))
-	mux.HandleFunc("GET /feed/posts/{id}", auth.ObrigarAutenticacao(handler.GETPost))
-	mux.HandleFunc("GET /feed/posts/{id}/comments", auth.ObrigarAutenticacao(handler.GETComentariosPost))
-	mux.HandleFunc("POST /feed/posts/{id}/comments", auth.ObrigarAutenticacao(handler.POSTComentarioPost))
-	mux.HandleFunc("PUT /feed/posts/{id}/reaction", auth.ObrigarAutenticacao(handler.PUTReacaoPost))
-	mux.HandleFunc("PUT /feed/comments/{id}/reaction", auth.ObrigarAutenticacao(handler.PUTReacaoComentario))
-	mux.HandleFunc("PUT /feed/posts/{id}/save", auth.ObrigarAutenticacao(handler.PUTSalvarPost))
-}
-
 func (handler *FeedHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/feed", respostas.AdaptadorHTTP(handler.GETFeed))
 	grupo.POST("/feed/posts", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "empresa", "universidade", "sistema_admin")(handler.POSTCriarPost)))

@@ -38,7 +38,7 @@ ORDER BY criado_em DESC`
 		if err != nil {
 			return nil, err
 		}
-		if err := carregarAutorPublico(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
 			return nil, err
 		}
 		out = append(out, o)
@@ -59,7 +59,7 @@ FROM oportunidades WHERE id = $1::uuid`
 		}
 		return empresaService.Oportunidade{}, false, err
 	}
-	if err := carregarAutorPublico(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
 		return empresaService.Oportunidade{}, false, err
 	}
 	return o, true, nil
@@ -208,14 +208,6 @@ func scanLinhaOportunidade(row interface{ Scan(dest ...any) error }) (empresaSer
 		o.Requisitos = []string{}
 	}
 	return o, nil
-}
-
-func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
 }
 
 func atualizarCartaoFeedOportunidadeTx(ctx context.Context, tx pgx.Tx, ref string, corpo empresaService.RequisicaoCriarOportunidade) error {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	feedService "campus_connect_api/internal/modulos/feed/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -135,8 +136,7 @@ func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, p
 	}
 	_ = json.Unmarshal(anexosJSON, &post.Anexos)
 	post.CriadoEm = criadoEm.UTC().Format(time.RFC3339)
-	post.Autor, err = repositorio.obterPerfilAutor(contexto, post.AutorID)
-	if err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, post.AutorID, &post.Autor); err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
 	}
 	post.Comentarios, err = repositorio.ListarComentariosPost(contexto, postID)
@@ -180,8 +180,7 @@ ORDER BY c.criado_em ASC`
 		if err := rows.Scan(&it.Identificador, &it.PostID, &it.AutorID, &it.Texto, &criadoEm, &it.GosteiTotal, &it.DesgosteiTotal); err != nil {
 			return nil, err
 		}
-		it.Autor, err = repositorio.obterPerfilAutor(contexto, it.AutorID)
-		if err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
 			return nil, err
 		}
 		it.CriadoEm = criadoEm.UTC().Format(time.RFC3339)
@@ -199,11 +198,9 @@ func (repositorio *feedRepositoryPostgres) CriarComentarioPost(contexto context.
 	}
 	out.PostID = postID
 	out.AutorID = autorID
-	autor, err := repositorio.obterPerfilAutor(contexto, autorID)
-	if err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, autorID, &out.Autor); err != nil {
 		return feedService.ComentarioPost{}, err
 	}
-	out.Autor = autor
 	out.Texto = corpo.Texto
 	out.CriadoEm = criadoEm.UTC().Format(time.RFC3339)
 	return out, nil
@@ -248,14 +245,3 @@ func nullSeVazio(s string) any {
 	return s
 }
 
-func (repositorio *feedRepositoryPostgres) obterPerfilAutor(contexto context.Context, usuarioID string) (feedService.PerfilAutor, error) {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	var autor feedService.PerfilAutor
-	if err := repositorio.pool.QueryRow(contexto, sql, usuarioID).Scan(&autor.Identificador, &autor.Nome, &autor.URLAvatar, &autor.Perfil); err != nil {
-		return feedService.PerfilAutor{}, err
-	}
-	return autor, nil
-}

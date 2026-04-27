@@ -1,9 +1,5 @@
 package model
 
-type InteressePerfil struct {
-	Rotulo string `json:"label"`
-}
-
 type RequisicaoAtualizarPerfil struct {
 	SobreMim         string   `json:"about_me"`
 	Cargo            string   `json:"job_title"`
@@ -25,13 +21,5 @@ type ItemHistoricoPerfil struct {
 }
 
 type RespostaHistoricoPerfil struct {
-	Itens         []ItemHistoricoPerfil `json:"items"`
-	ProximoCursor string                `json:"next_cursor,omitempty"`
-}
-
-type LinhaAtividadePerfil struct {
-	Tipo               TipoAtividadePerfil `json:"kind"`
-	DestaqueTitulo     string              `json:"title_highlight"`
-	Subtitulo          string              `json:"subtitle"`
-	TextoTempoRelativo string              `json:"time_ago_label"`
+	Itens []ItemHistoricoPerfil `json:"items"`
 }

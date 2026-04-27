@@ -1,6 +1,9 @@
 package service
 
-import model "campus_connect_api/internal/modulos/feed/structs"
+import (
+	comum "campus_connect_api/internal/modulos/comum"
+	model "campus_connect_api/internal/modulos/feed/structs"
+)
 
 type CategoriaItemFeed = model.CategoriaItemFeed
 
@@ -17,7 +20,7 @@ const (
 type ItemFeed = model.ItemFeed
 type RespostaFeed = model.RespostaFeed
 type AnexoPost = model.AnexoPost
-type PerfilAutor = model.PerfilAutor
+type PerfilPublicoAutor = comum.PerfilPublicoAutor
 type RequisicaoCriarPost = model.RequisicaoCriarPost
 type ComentarioPost = model.ComentarioPost
 type RequisicaoCriarComentario = model.RequisicaoCriarComentario

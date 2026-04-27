@@ -57,7 +57,7 @@ func (repositorio *grupoRepositoryPostgres) ListarGrupos(contexto context.Contex
 		if err := rows.Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario, &g.AutorID); err != nil {
 			return nil, err
 		}
-		if err := carregarAutorPublico(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
 			return nil, err
 		}
 		g.Nivel = grupoService.NivelGrupoEstudo(lvl)
@@ -208,7 +208,7 @@ func (repositorio *grupoRepositoryPostgres) obterGrupo(contexto context.Context,
 		}
 		return grupoService.GrupoEstudo{}, false, err
 	}
-	if err := carregarAutorPublico(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, g.AutorID, &g.Autor); err != nil {
 		return grupoService.GrupoEstudo{}, false, err
 	}
 	g.Nivel = grupoService.NivelGrupoEstudo(lvl)
@@ -264,10 +264,3 @@ func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto conte
 	return tx.Commit(contexto)
 }
 
-func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
-}

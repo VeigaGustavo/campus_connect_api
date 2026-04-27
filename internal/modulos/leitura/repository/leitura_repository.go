@@ -33,7 +33,7 @@ func (repositorio *leituraRepositoryPostgres) ListarLeituraSemanal(contexto cont
 		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta, &it.AutorID); err != nil {
 			return nil, err
 		}
-		if err := carregarAutorPublico(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
 			return nil, err
 		}
 		it.Tipo = leituraService.TipoItemLeitura(k)
@@ -93,7 +93,7 @@ func (repositorio *leituraRepositoryPostgres) obterLeituraSemanal(contexto conte
 		}
 		return leituraService.ItemLeituraSemanal{}, false, err
 	}
-	if err := carregarAutorPublico(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, it.AutorID, &it.Autor); err != nil {
 		return leituraService.ItemLeituraSemanal{}, false, err
 	}
 	it.Tipo = leituraService.TipoItemLeitura(k)
@@ -139,10 +139,3 @@ func (repositorio *leituraRepositoryPostgres) removerLeituraSemanalComPerfil(con
 	return tx.Commit(contexto)
 }
 
-func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
-}

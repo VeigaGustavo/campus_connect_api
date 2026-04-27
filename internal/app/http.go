@@ -4,18 +4,15 @@ import (
 	comunidadeHandler "campus_connect_api/internal/modulos/comunidade/handler"
 	comunidadeRepository "campus_connect_api/internal/modulos/comunidade/repository"
 	comunidadeService "campus_connect_api/internal/modulos/comunidade/service"
-	discoverHandler "campus_connect_api/internal/modulos/discover/handler"
-	discoverRepository "campus_connect_api/internal/modulos/discover/repository"
-	discoverService "campus_connect_api/internal/modulos/discover/service"
-	feedHandler "campus_connect_api/internal/modulos/feed/handler"
-	feedRepository "campus_connect_api/internal/modulos/feed/repository"
-	feedService "campus_connect_api/internal/modulos/feed/service"
 	empresaHandler "campus_connect_api/internal/modulos/empresa/handler"
 	empresaRepository "campus_connect_api/internal/modulos/empresa/repository"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
 	eventoHandler "campus_connect_api/internal/modulos/evento/handler"
 	eventoRepository "campus_connect_api/internal/modulos/evento/repository"
 	eventoService "campus_connect_api/internal/modulos/evento/service"
+	feedHandler "campus_connect_api/internal/modulos/feed/handler"
+	feedRepository "campus_connect_api/internal/modulos/feed/repository"
+	feedService "campus_connect_api/internal/modulos/feed/service"
 	grupoHandler "campus_connect_api/internal/modulos/grupo/handler"
 	grupoRepository "campus_connect_api/internal/modulos/grupo/repository"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
@@ -43,7 +40,6 @@ import (
 )
 
 func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
-	servicoDiscover := discoverService.NovoDiscoverService(discoverRepository.NovoDiscoverRepository(pool))
 	servicoFeed := feedService.NovoFeedService(feedRepository.NovoFeedRepository(pool))
 	servicoEmpresa := empresaService.NovoEmpresaService(empresaRepository.NovoEmpresaRepository(pool))
 	servicoEvento := eventoService.NovoEventoService(eventoRepository.NovoEventoRepository(pool))
@@ -68,7 +64,6 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	api := engine.Group("/api")
 	segurancaHandler.NovoSegurancaHTTPHandler(servicoSeguranca).RegistrarRotasGIN(api)
 	usuarioHandler.NovoUsuarioHTTPHandler(servicoUsuario).RegistrarRotasGIN(api)
-	discoverHandler.NovoDiscoverHTTPHandler(servicoDiscover).RegistrarRotasGIN(api)
 	feedHandler.NovoFeedHTTPHandler(servicoFeed).RegistrarRotasGIN(api)
 	empresaHandler.NovoEmpresaHTTPHandler(servicoEmpresa).RegistrarRotasGIN(api)
 	eventoHandler.NovoEventoHTTPHandler(servicoEvento).RegistrarRotasGIN(api)

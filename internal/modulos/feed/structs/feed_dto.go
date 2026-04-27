@@ -1,5 +1,7 @@
 package model
 
+import comum "campus_connect_api/internal/modulos/comum"
+
 type ItemFeed struct {
 	Identificador  string            `json:"id"`
 	Categoria      CategoriaItemFeed `json:"kind"`
@@ -21,13 +23,6 @@ type AnexoPost struct {
 	Nome string `json:"name,omitempty"`
 }
 
-type PerfilAutor struct {
-	Identificador string `json:"id"`
-	Nome          string `json:"name"`
-	URLAvatar     string `json:"avatar_image_url"`
-	Perfil        string `json:"role"`
-}
-
 type RequisicaoCriarPost struct {
 	Texto             string      `json:"text"`
 	Anexos            []AnexoPost `json:"attachments"`
@@ -36,14 +31,14 @@ type RequisicaoCriarPost struct {
 }
 
 type ComentarioPost struct {
-	Identificador  string      `json:"id"`
-	PostID         string      `json:"post_id"`
-	AutorID        string      `json:"author_id"`
-	Autor          PerfilAutor `json:"author"`
-	Texto          string      `json:"text"`
-	GosteiTotal    int         `json:"likes_count"`
-	DesgosteiTotal int         `json:"dislikes_count"`
-	CriadoEm       string      `json:"created_at"`
+	Identificador  string                   `json:"id"`
+	PostID         string                   `json:"post_id"`
+	AutorID        string                   `json:"author_id"`
+	Autor          comum.PerfilPublicoAutor `json:"author"`
+	Texto          string                   `json:"text"`
+	GosteiTotal    int                      `json:"likes_count"`
+	DesgosteiTotal int                      `json:"dislikes_count"`
+	CriadoEm       string                   `json:"created_at"`
 }
 
 type RequisicaoCriarComentario struct {
@@ -59,16 +54,16 @@ type RequisicaoSalvarPost struct {
 }
 
 type PostFeedDetalhe struct {
-	Identificador    string           `json:"id"`
-	AutorID          string           `json:"author_id"`
-	Autor            PerfilAutor      `json:"author"`
-	Texto            string           `json:"text"`
-	Anexos           []AnexoPost      `json:"attachments"`
-	GosteiTotal      int              `json:"likes_count"`
-	DesgosteiTotal   int              `json:"dislikes_count"`
-	Comentarios      []ComentarioPost `json:"comments"`
-	MeuVoto          string           `json:"my_reaction,omitempty"`
-	Salvo            bool             `json:"saved"`
-	LinkCompartilhar string           `json:"share_link"`
-	CriadoEm         string           `json:"created_at"`
+	Identificador    string                   `json:"id"`
+	AutorID          string                   `json:"author_id"`
+	Autor            comum.PerfilPublicoAutor `json:"author"`
+	Texto            string                   `json:"text"`
+	Anexos           []AnexoPost              `json:"attachments"`
+	GosteiTotal      int                      `json:"likes_count"`
+	DesgosteiTotal   int                      `json:"dislikes_count"`
+	Comentarios      []ComentarioPost         `json:"comments"`
+	MeuVoto          string                   `json:"my_reaction,omitempty"`
+	Salvo            bool                     `json:"saved"`
+	LinkCompartilhar string                   `json:"share_link"`
+	CriadoEm         string                   `json:"created_at"`
 }

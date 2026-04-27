@@ -3,10 +3,12 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
 	perfilService "campus_connect_api/internal/modulos/perfil/service"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,44 +22,35 @@ func NovoPerfilRepository(pool *pgxpool.Pool) perfilService.PerfilRepository {
 
 func (repositorio *perfilRepositoryPostgres) PerfilUsuario(contexto context.Context, usuarioID string) (perfilService.PerfilUsuario, error) {
 	const sql = `
-SELECT id::text, nome, coalesce(initials,''), coalesce(cover_image_url,''), coalesce(avatar_image_url,''),
-       coalesce(performance_certificate_label,''), coalesce(course_and_semester,''), email, coalesce(city_state,''),
+SELECT id::text, nome, coalesce(cover_image_url,''), coalesce(avatar_image_url,''),
+       email, coalesce(city_state,''),
        coalesce(about_me,''), coalesce(job_title,''), coalesce(course,''), coalesce(semester,''), coalesce(institution_name,''),
        applications_count, groups_count, events_count,
-       coalesce(interests,'[]'::jsonb), coalesce(favorite_topics,'[]'::jsonb), coalesce(specialties,'[]'::jsonb),
-       coalesce(recent_activity,'[]'::jsonb)
+       coalesce(interests,'[]'::jsonb), coalesce(favorite_topics,'[]'::jsonb), coalesce(specialties,'[]'::jsonb)
 FROM usuarios WHERE id=$1::uuid`
 	var u perfilService.PerfilUsuario
-	var interessesJSON, topicosJSON, especialidadesJSON, recentJSON []byte
+	var interessesJSON, topicosJSON, especialidadesJSON []byte
 	err := repositorio.pool.QueryRow(contexto, sql, usuarioID).Scan(
-		&u.Identificador, &u.Nome, &u.Iniciais, &u.URLImagemCapa, &u.URLImagemAvatar, &u.RotuloCertificadoDesempenho,
-		&u.CursoESemestre, &u.Email, &u.CidadeEstado,
+		&u.Identificador, &u.Nome, &u.URLImagemCapa, &u.URLImagemAvatar,
+		&u.Email, &u.CidadeEstado,
 		&u.SobreMim, &u.Cargo, &u.Curso, &u.Semestre, &u.Instituicao,
 		&u.TotalCandidaturas, &u.TotalGrupos, &u.TotalEventos,
-		&interessesJSON, &topicosJSON, &especialidadesJSON, &recentJSON,
+		&interessesJSON, &topicosJSON, &especialidadesJSON,
 	)
 	if err != nil {
 		return perfilService.PerfilUsuario{}, err
 	}
-	var interessesTexto []string
-	_ = json.Unmarshal(interessesJSON, &interessesTexto)
-	for _, interesse := range interessesTexto {
-		u.Interesses = append(u.Interesses, perfilService.InteressePerfil{Rotulo: interesse})
-	}
+	_ = json.Unmarshal(interessesJSON, &u.Interesses)
 	_ = json.Unmarshal(topicosJSON, &u.TopicosFavoritos)
 	_ = json.Unmarshal(especialidadesJSON, &u.Especialidades)
-	_ = json.Unmarshal(recentJSON, &u.AtividadesRecentes)
 	if u.Interesses == nil {
-		u.Interesses = []perfilService.InteressePerfil{}
+		u.Interesses = []string{}
 	}
 	if u.TopicosFavoritos == nil {
 		u.TopicosFavoritos = []string{}
 	}
 	if u.Especialidades == nil {
 		u.Especialidades = []string{}
-	}
-	if u.AtividadesRecentes == nil {
-		u.AtividadesRecentes = []perfilService.LinhaAtividadePerfil{}
 	}
 	destaque, err := repositorio.obterDestaqueComunidade(contexto, usuarioID)
 	if err != nil {
@@ -140,8 +133,12 @@ WHERE uc.usuario_id=$1::uuid
 ORDER BY uc.criado_em DESC
 LIMIT 1`
 	var destaque perfilService.DestaqueComunidadePerfil
-	if err := repositorio.pool.QueryRow(contexto, sql, usuarioID).Scan(&destaque.Identificador, &destaque.Nome, &destaque.Tipo, &destaque.Papel); err != nil {
-		return nil, nil
+	err := repositorio.pool.QueryRow(contexto, sql, usuarioID).Scan(&destaque.Identificador, &destaque.Nome, &destaque.Tipo, &destaque.Papel)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	return &destaque, nil
 }

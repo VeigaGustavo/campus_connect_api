@@ -32,7 +32,7 @@ func (repositorio *projetoRepositoryPostgres) ListarProjetos(contexto context.Co
 		if err := rows.Scan(&pr.Identificador, &pr.Titulo, &pr.Descricao, &pr.AutorID); err != nil {
 			return nil, err
 		}
-		if err := carregarAutorPublico(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
+		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
 			return nil, err
 		}
 		out = append(out, pr)
@@ -90,7 +90,7 @@ func (repositorio *projetoRepositoryPostgres) obterProjeto(contexto context.Cont
 		}
 		return projetoService.Projeto{}, false, err
 	}
-	if err := carregarAutorPublico(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, pr.AutorID, &pr.Autor); err != nil {
 		return projetoService.Projeto{}, false, err
 	}
 	return pr, true, nil
@@ -143,10 +143,3 @@ func (repositorio *projetoRepositoryPostgres) removerProjetoComPerfil(contexto c
 	return tx.Commit(contexto)
 }
 
-func carregarAutorPublico(contexto context.Context, pool *pgxpool.Pool, autorID string, destino *comum.PerfilPublicoAutor) error {
-	const sql = `SELECT u.id::text, u.nome, coalesce(u.avatar_image_url,''), pf.codigo
-FROM usuarios u
-JOIN perfis_usuario pf ON pf.id = u.perfil_id
-WHERE u.id=$1::uuid`
-	return pool.QueryRow(contexto, sql, autorID).Scan(&destino.Identificador, &destino.Nome, &destino.URLAvatar, &destino.Perfil)
-}
