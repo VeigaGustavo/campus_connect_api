@@ -20,6 +20,7 @@ import (
 	leituraRepository "campus_connect_api/internal/modulos/leitura/repository"
 	leituraService "campus_connect_api/internal/modulos/leitura/service"
 	perfilHandler "campus_connect_api/internal/modulos/perfil/handler"
+	"campus_connect_api/internal/modulos/perfil/media"
 	perfilRepository "campus_connect_api/internal/modulos/perfil/repository"
 	perfilService "campus_connect_api/internal/modulos/perfil/service"
 	projetoHandler "campus_connect_api/internal/modulos/projeto/handler"
@@ -35,11 +36,20 @@ import (
 	usuarioRepository "campus_connect_api/internal/modulos/usuario/repository"
 	usuarioService "campus_connect_api/internal/modulos/usuario/service"
 	"campus_connect_api/internal/respostas"
+	"os"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GIN_MODE")), "debug") {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	servicoFeed := feedService.NovoFeedService(feedRepository.NovoFeedRepository(pool))
 	servicoEmpresa := empresaService.NovoEmpresaService(empresaRepository.NovoEmpresaRepository(pool))
 	servicoEvento := eventoService.NovoEventoService(eventoRepository.NovoEventoRepository(pool))
@@ -58,8 +68,12 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	engine.Use(respostas.GinCORS())
 	engine.Use(respostas.GinAceitarJSON())
 	engine.GET("/health", func(contexto *gin.Context) {
-		contexto.JSON(200, map[string]string{"status": "ok"})
+		contexto.JSON(200, map[string]any{
+			"status":   "ok",
+			"features": []string{"feed_posts_list", "feed_attachments_upload"},
+		})
 	})
+	engine.Static("/uploads", media.ResolverDirUploads())
 
 	api := engine.Group("/api")
 	segurancaHandler.NovoSegurancaHTTPHandler(servicoSeguranca).RegistrarRotasGIN(api)
@@ -72,7 +86,9 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	universidadeHandler.NovoUniversidadeHTTPHandler(servicoUniversidade).RegistrarRotasGIN(api)
 	leituraHandler.NovoLeituraHTTPHandler(servicoLeitura).RegistrarRotasGIN(api)
 	projetoHandler.NovoProjetoHTTPHandler(servicoProjeto).RegistrarRotasGIN(api)
-	perfilHandler.NovoPerfilHTTPHandler(servicoPerfil).RegistrarRotasGIN(api)
+	perfilHTTP := perfilHandler.NovoPerfilHTTPHandler(servicoPerfil)
+	perfilHTTP.RegistrarRotasUploadGIN(api)
+	perfilHTTP.RegistrarRotasGIN(api)
 
 	return engine
 }

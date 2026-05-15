@@ -24,12 +24,15 @@ func GinRequestID() gin.HandlerFunc {
 
 		contextoRequisicao := context.WithValue(contexto.Request.Context(), chaveRequestID, rid)
 		contexto.Request = contexto.Request.WithContext(contextoRequisicao)
-		slog.Default().Info("request",
-			"method", contexto.Request.Method,
-			"path", contexto.Request.URL.Path,
-			"request_id", rid,
-		)
 		contexto.Next()
+		if codigo := contexto.Writer.Status(); codigo >= http.StatusInternalServerError {
+			slog.Default().Error("http_response_error",
+				"method", contexto.Request.Method,
+				"path", contexto.Request.URL.Path,
+				"status", codigo,
+				"request_id", rid,
+			)
+		}
 	}
 }
 
@@ -57,6 +60,14 @@ func GinAceitarJSON() gin.HandlerFunc {
 		if contexto.Request.Method == http.MethodOptions {
 			contexto.Next()
 			return
+		}
+		// Upload de imagem: multipart, nao exige Accept JSON.
+		if contexto.Request.Method == http.MethodPost {
+			p := contexto.Request.URL.Path
+			if strings.HasSuffix(p, "/profile/avatar") || strings.HasSuffix(p, "/profile/cover") || strings.HasSuffix(p, "/feed/attachments") {
+				contexto.Next()
+				return
+			}
 		}
 		aceitar := contexto.GetHeader("Accept")
 		if aceitar == "" || strings.Contains(aceitar, "*/*") || strings.Contains(aceitar, "application/json") {

@@ -11,6 +11,7 @@ type RequisicaoCadastroUsuario struct {
 	TipoPerfil           string `json:"profile_type"`
 	NomeCompleto         string `json:"full_name"`
 	Idade                int    `json:"age"`
+	DataNascimento       string `json:"birth_date,omitempty"` // YYYY-MM-DD; se age não vier, a idade é calculada daqui
 	CPF                  string `json:"cpf"`
 	Instituicao          string `json:"institution"`
 	Cidade               string `json:"city"`

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	comum "campus_connect_api/internal/modulos/comum"
@@ -23,6 +24,8 @@ func NovoFeedHTTPHandler(servicoFeed *feedService.FeedService) *FeedHTTPHandler 
 
 func (handler *FeedHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/feed", respostas.AdaptadorHTTP(handler.GETFeed))
+	grupo.POST("/feed/attachments", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "empresa", "universidade", "sistema_admin")(handler.POSTAnexoFeed)))
+	grupo.GET("/feed/posts", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.GETListarPosts)))
 	grupo.POST("/feed/posts", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "empresa", "universidade", "sistema_admin")(handler.POSTCriarPost)))
 	grupo.GET("/feed/posts/:id", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.GETPost)))
 	grupo.GET("/feed/posts/:id/comments", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.GETComentariosPost)))
@@ -52,6 +55,51 @@ func (handler *FeedHTTPHandler) GETFeed(resposta http.ResponseWriter, requisicao
 	respostas.EscreverJSON(resposta, http.StatusOK, out)
 }
 
+func (handler *FeedHTTPHandler) GETListarPosts(resposta http.ResponseWriter, requisicao *http.Request) {
+	sessao, ok := auth.SessaoDaRequisicao(requisicao)
+	if !ok {
+		respostas.EscreverErro(resposta, http.StatusUnauthorized, "unauthorized", "missing session")
+		return
+	}
+	pagina := 1
+	if v := strings.TrimSpace(requisicao.URL.Query().Get("page")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			pagina = n
+		}
+	}
+	limite := 20
+	if v := strings.TrimSpace(requisicao.URL.Query().Get("limit")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limite = n
+		}
+	}
+	incluirComentarios := strings.EqualFold(requisicao.URL.Query().Get("include_comments"), "true") ||
+		requisicao.URL.Query().Get("include_comments") == "1"
+
+	var grupos []string
+	if gruposCSV := strings.TrimSpace(requisicao.URL.Query().Get("group_ids")); gruposCSV != "" {
+		for _, g := range strings.Split(gruposCSV, ",") {
+			gg := strings.TrimSpace(g)
+			if gg != "" {
+				grupos = append(grupos, gg)
+			}
+		}
+	}
+
+	out, err := handler.servicoFeed.ListarPosts(requisicao.Context(), sessao.UsuarioID, feedService.FiltroListarPosts{
+		Pagina:             pagina,
+		Limite:             limite,
+		AutorID:            strings.TrimSpace(requisicao.URL.Query().Get("author_id")),
+		GruposDoUsuario:    grupos,
+		IncluirComentarios: incluirComentarios,
+	})
+	if err != nil {
+		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	respostas.EscreverJSON(resposta, http.StatusOK, out)
+}
+
 func (handler *FeedHTTPHandler) POSTCriarPost(resposta http.ResponseWriter, requisicao *http.Request) {
 	sessao, ok := auth.SessaoDaRequisicao(requisicao)
 	if !ok {
@@ -65,6 +113,10 @@ func (handler *FeedHTTPHandler) POSTCriarPost(resposta http.ResponseWriter, requ
 	}
 	post, err := handler.servicoFeed.CriarPost(requisicao.Context(), sessao.UsuarioID, corpo)
 	if err != nil {
+		if errors.Is(err, feedService.ErrPostInvalido) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_post", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}

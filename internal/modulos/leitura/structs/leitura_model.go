@@ -13,3 +13,7 @@ type ItemLeituraSemanal struct {
 	URLImagem     string                   `json:"image_url"`
 	RotuloMeta    string                   `json:"meta_label"`
 }
+
+type RespostaListaLeituraSemanal struct {
+	Itens []ItemLeituraSemanal `json:"items"`
+}

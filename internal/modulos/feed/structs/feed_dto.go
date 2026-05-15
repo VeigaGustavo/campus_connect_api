@@ -10,7 +10,9 @@ type ItemFeed struct {
 	Resumo         string            `json:"excerpt"`
 	MetaPrincipal  string            `json:"meta_primary"`
 	MetaSecundaria string            `json:"meta_secondary"`
-	IDReferencia   string            `json:"reference_id"`
+	IDReferencia      string            `json:"reference_id"`
+	EscopoPublicacao  string            `json:"publish_scope"`
+	IDGrupoPublicacao string            `json:"publish_group_id,omitempty"`
 }
 
 type RespostaFeed struct {
@@ -28,6 +30,7 @@ type RequisicaoCriarPost struct {
 	Anexos            []AnexoPost `json:"attachments"`
 	EscopoPublicacao  string      `json:"publish_scope"`
 	IDGrupoPublicacao string      `json:"publish_group_id"`
+	TipoConteudo      string      `json:"content_kind,omitempty"`
 }
 
 type ComentarioPost struct {
@@ -54,16 +57,35 @@ type RequisicaoSalvarPost struct {
 }
 
 type PostFeedDetalhe struct {
-	Identificador    string                   `json:"id"`
-	AutorID          string                   `json:"author_id"`
-	Autor            comum.PerfilPublicoAutor `json:"author"`
-	Texto            string                   `json:"text"`
-	Anexos           []AnexoPost              `json:"attachments"`
-	GosteiTotal      int                      `json:"likes_count"`
-	DesgosteiTotal   int                      `json:"dislikes_count"`
-	Comentarios      []ComentarioPost         `json:"comments"`
-	MeuVoto          string                   `json:"my_reaction,omitempty"`
-	Salvo            bool                     `json:"saved"`
-	LinkCompartilhar string                   `json:"share_link"`
-	CriadoEm         string                   `json:"created_at"`
+	Identificador       string                   `json:"id"`
+	AutorID             string                   `json:"author_id"`
+	Autor               comum.PerfilPublicoAutor `json:"author"`
+	Texto               string                   `json:"text"`
+	Anexos              []AnexoPost              `json:"attachments"`
+	TipoConteudo        string                   `json:"content_kind,omitempty"`
+	EscopoPublicacao    string                   `json:"publish_scope,omitempty"`
+	IDGrupoPublicacao   string                   `json:"publish_group_id,omitempty"`
+	GosteiTotal         int                      `json:"likes_count"`
+	DesgosteiTotal      int                      `json:"dislikes_count"`
+	Comentarios         []ComentarioPost         `json:"comments"`
+	MeuVoto             string                   `json:"my_reaction,omitempty"`
+	Salvo               bool                     `json:"saved"`
+	LinkCompartilhar    string                   `json:"share_link"`
+	CriadoEm            string                   `json:"created_at"`
+}
+
+type FiltroListarPosts struct {
+	Pagina            int
+	Limite            int
+	AutorID           string
+	GruposDoUsuario   []string
+	IncluirComentarios bool
+}
+
+type RespostaListaPosts struct {
+	Itens   []PostFeedDetalhe `json:"items"`
+	Total   int               `json:"total"`
+	Pagina  int               `json:"page"`
+	Limite  int               `json:"limit"`
+	TemMais bool              `json:"has_more"`
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -32,11 +31,6 @@ func EncadearRequestID(proximo http.Handler) http.Handler {
 		}
 		resposta.Header().Set("X-Request-Id", rid)
 		contexto := context.WithValue(requisicao.Context(), chaveRequestID, rid)
-		slog.Default().Info("request",
-			"method", requisicao.Method,
-			"path", requisicao.URL.Path,
-			"request_id", rid,
-		)
 		proximo.ServeHTTP(resposta, requisicao.WithContext(contexto))
 	})
 }

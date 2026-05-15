@@ -33,7 +33,7 @@ func (handler *LeituraHTTPHandler) GETLeituraSemanal(resposta http.ResponseWrite
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	respostas.EscreverJSON(resposta, http.StatusOK, out)
+	respostas.EscreverJSON(resposta, http.StatusOK, leituraService.RespostaListaLeituraSemanal{Itens: out})
 }
 
 func (handler *LeituraHTTPHandler) POSTCriarLeituraSemanal(resposta http.ResponseWriter, requisicao *http.Request) {

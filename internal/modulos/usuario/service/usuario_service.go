@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"campus_connect_api/internal/modelos"
 	segurancaAuth "campus_connect_api/internal/modulos/seguranca/auth"
@@ -23,6 +24,11 @@ func NovoUsuarioService(repositorio UsuarioRepository) *UsuarioService {
 }
 
 func (servico *UsuarioService) RegistrarNovoUsuario(contexto context.Context, corpo RequisicaoCadastroUsuario) (map[string]any, error) {
+	if corpo.Idade <= 0 {
+		if idade, ok := idadeAPartirDeDataNascimento(strings.TrimSpace(corpo.DataNascimento)); ok {
+			corpo.Idade = idade
+		}
+	}
 	if strings.TrimSpace(corpo.NomeCompleto) == "" ||
 		strings.TrimSpace(corpo.Email) == "" ||
 		strings.TrimSpace(corpo.Senha) == "" ||
@@ -74,4 +80,27 @@ func SessaoParaRespostaUsuario(sessao segurancaAuth.SessaoUsuario) modelos.Usuar
 		Email:  sessao.Email,
 		Perfil: sessao.Perfil,
 	}
+}
+
+// idadeAPartirDeDataNascimento espera data no formato YYYY-MM-DD (RFC 3339 só a parte da data).
+func idadeAPartirDeDataNascimento(s string) (int, bool) {
+	if s == "" {
+		return 0, false
+	}
+	nascimento, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return 0, false
+	}
+	hoje := time.Now().UTC()
+	if nascimento.After(hoje) {
+		return 0, false
+	}
+	anos := hoje.Year() - nascimento.Year()
+	if hoje.Month() < nascimento.Month() || (hoje.Month() == nascimento.Month() && hoje.Day() < nascimento.Day()) {
+		anos--
+	}
+	if anos < 1 || anos > 130 {
+		return 0, false
+	}
+	return anos, true
 }

@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError})))
 	carregarEnvLocal()
 
 	contexto := context.Background()
@@ -34,6 +34,9 @@ func main() {
 		log.Fatalf("postgres: %v", err)
 	}
 	defer pool.Close()
+	if err := banco.AplicarMigracoesEssenciais(contexto, pool); err != nil {
+		log.Fatalf("migracoes: %v", err)
+	}
 	log.Println("persistência: PostgreSQL (DATABASE_URL)")
 
 	engine := app.NewGinEngine(pool)

@@ -11,4 +11,5 @@ const (
 )
 
 type ItemLeituraSemanal = model.ItemLeituraSemanal
+type RespostaListaLeituraSemanal = model.RespostaListaLeituraSemanal
 type RequisicaoLeituraSemanal = model.RequisicaoLeituraSemanal

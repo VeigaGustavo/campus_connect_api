@@ -27,3 +27,5 @@ type RequisicaoCriarComentario = model.RequisicaoCriarComentario
 type RequisicaoReacao = model.RequisicaoReacao
 type RequisicaoSalvarPost = model.RequisicaoSalvarPost
 type PostFeedDetalhe = model.PostFeedDetalhe
+type FiltroListarPosts = model.FiltroListarPosts
+type RespostaListaPosts = model.RespostaListaPosts

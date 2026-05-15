@@ -19,7 +19,8 @@ type feedRepositoryPostgres struct {
 	pool *pgxpool.Pool
 }
 
-const selectFeed = `SELECT id, kind::text, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id FROM feed_cartoes`
+const selectFeed = `SELECT id, kind::text, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id,
+coalesce(visibility_scope,'all'), coalesce(visibility_group_id::text,'') FROM feed_cartoes`
 
 var feedKindPorFiltro = map[string]string{
 	comum.FiltroDescobrirEstagios: comum.FeedKindEstagio,
@@ -74,7 +75,7 @@ func (repositorio *feedRepositoryPostgres) Feed(contexto context.Context, filtro
 	for rows.Next() {
 		var it feedService.ItemFeed
 		var k string
-		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Subtitulo, &it.Resumo, &it.MetaPrincipal, &it.MetaSecundaria, &it.IDReferencia); err != nil {
+		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Subtitulo, &it.Resumo, &it.MetaPrincipal, &it.MetaSecundaria, &it.IDReferencia, &it.EscopoPublicacao, &it.IDGrupoPublicacao); err != nil {
 			return nil, err
 		}
 		it.Categoria = feedService.CategoriaItemFeed(k)
@@ -89,16 +90,21 @@ func (repositorio *feedRepositoryPostgres) CriarPost(contexto context.Context, c
 	if err != nil {
 		return feedService.PostFeedDetalhe{}, err
 	}
+	var autor comum.PerfilPublicoAutor
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, criadoPor, &autor); err != nil {
+		return feedService.PostFeedDetalhe{}, err
+	}
 	tx, err := repositorio.pool.Begin(contexto)
 	if err != nil {
 		return feedService.PostFeedDetalhe{}, err
 	}
 	defer func() { _ = tx.Rollback(contexto) }()
 
-	const insPost = `INSERT INTO feed_posts (author_id, body_text, attachments, share_link) VALUES ($1::uuid,$2,$3::jsonb,'') RETURNING id::text, criado_em`
+	const insPost = `INSERT INTO feed_posts (author_id, body_text, attachments, share_link, content_kind)
+VALUES ($1::uuid,$2,$3::jsonb,'',$4) RETURNING id::text, criado_em`
 	var postID string
 	var criadoEm time.Time
-	if err := tx.QueryRow(contexto, insPost, criadoPor, corpo.Texto, anexosJSON).Scan(&postID, &criadoEm); err != nil {
+	if err := tx.QueryRow(contexto, insPost, criadoPor, corpo.Texto, anexosJSON, strings.TrimSpace(corpo.TipoConteudo)).Scan(&postID, &criadoEm); err != nil {
 		return feedService.PostFeedDetalhe{}, err
 	}
 	shareLink := "/posts/" + postID
@@ -110,9 +116,14 @@ func (repositorio *feedRepositoryPostgres) CriarPost(contexto context.Context, c
 		scope = comum.VisibilidadeTodos
 		corpo.IDGrupoPublicacao = ""
 	}
+	titulo := tituloCartaoPost(corpo.Texto)
+	subtitulo := strings.TrimSpace(autor.Nome)
+	if subtitulo == "" {
+		subtitulo = "Comunidade"
+	}
 	const insCard = `INSERT INTO feed_cartoes (id, kind, titulo, subtitle, excerpt, meta_primary, meta_secondary, reference_id, visibility_scope, visibility_group_id)
 VALUES ($1,'post',$2,$3,$4,$5,$6,$7,$8,$9)`
-	if _, err := tx.Exec(contexto, insCard, "dsc-"+postID, "Novo post", "Comunidade", corpo.Texto, "Post", "social", postID, scope, nullSeVazio(corpo.IDGrupoPublicacao)); err != nil {
+	if _, err := tx.Exec(contexto, insCard, "dsc-"+postID, titulo, subtitulo, resumoCartaoPost(corpo.Texto), metaAnexosPost(corpo.Anexos), "social", postID, scope, nullSeVazio(corpo.IDGrupoPublicacao)); err != nil {
 		return feedService.PostFeedDetalhe{}, err
 	}
 	if err := tx.Commit(contexto); err != nil {
@@ -123,11 +134,11 @@ VALUES ($1,'post',$2,$3,$4,$5,$6,$7,$8,$9)`
 }
 
 func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, postID, usuarioID string) (feedService.PostFeedDetalhe, bool, error) {
-	const sql = `SELECT id::text, author_id::text, body_text, attachments, share_link, criado_em FROM feed_posts WHERE id=$1::uuid`
+	const sql = `SELECT id::text, author_id::text, body_text, attachments, share_link, criado_em, coalesce(content_kind,'') FROM feed_posts WHERE id=$1::uuid`
 	var post feedService.PostFeedDetalhe
 	var anexosJSON []byte
 	var criadoEm time.Time
-	err := repositorio.pool.QueryRow(contexto, sql, postID).Scan(&post.Identificador, &post.AutorID, &post.Texto, &anexosJSON, &post.LinkCompartilhar, &criadoEm)
+	err := repositorio.pool.QueryRow(contexto, sql, postID).Scan(&post.Identificador, &post.AutorID, &post.Texto, &anexosJSON, &post.LinkCompartilhar, &criadoEm, &post.TipoConteudo)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return feedService.PostFeedDetalhe{}, false, nil
@@ -135,6 +146,9 @@ func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, p
 		return feedService.PostFeedDetalhe{}, false, err
 	}
 	_ = json.Unmarshal(anexosJSON, &post.Anexos)
+	if post.Anexos == nil {
+		post.Anexos = []feedService.AnexoPost{}
+	}
 	post.CriadoEm = criadoEm.UTC().Format(time.RFC3339)
 	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, post.AutorID, &post.Autor); err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
@@ -143,6 +157,10 @@ func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, p
 	if err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
 	}
+	if post.Comentarios == nil {
+		post.Comentarios = []feedService.ComentarioPost{}
+	}
+	repositorio.carregarEscopoPost(contexto, postID, &post)
 	if err := repositorio.pool.QueryRow(contexto, `SELECT count(1) FROM feed_post_reacoes WHERE post_id=$1::uuid AND reaction='like'`, postID).Scan(&post.GosteiTotal); err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
 	}
@@ -243,5 +261,38 @@ func nullSeVazio(s string) any {
 		return nil
 	}
 	return s
+}
+
+func tituloCartaoPost(texto string) string {
+	texto = strings.TrimSpace(texto)
+	if texto == "" {
+		return "Novo post"
+	}
+	r := []rune(texto)
+	if len(r) > 80 {
+		return string(r[:80]) + "…"
+	}
+	return texto
+}
+
+func resumoCartaoPost(texto string) string {
+	texto = strings.TrimSpace(texto)
+	r := []rune(texto)
+	if len(r) > 160 {
+		return string(r[:160]) + "…"
+	}
+	return texto
+}
+
+func metaAnexosPost(anexos []feedService.AnexoPost) string {
+	n := len(anexos)
+	switch n {
+	case 0:
+		return "Post"
+	case 1:
+		return "1 anexo"
+	default:
+		return fmt.Sprintf("%d anexos", n)
+	}
 }
 

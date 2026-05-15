@@ -7,7 +7,39 @@ type DestaqueComunidadePerfil struct {
 	Papel         string `json:"role"`
 }
 
+type ResumoPublicacaoOrganizacao struct {
+	Identificador string `json:"id"`
+	Titulo        string `json:"title"`
+	Subtitulo     string `json:"subtitle"`
+	IDReferencia  string `json:"reference_id"`
+	CriadoEm      string `json:"created_at"`
+}
+
+type ResumoPostOrganizacao struct {
+	Identificador string `json:"id"`
+	Antevisao     string `json:"preview"`
+	CriadoEm      string `json:"created_at"`
+}
+
+// PainelOrganizacaoPerfil agrega conteudo publicado pela conta (vagas, eventos, grupos, posts).
+type PainelOrganizacaoPerfil struct {
+	InstituicaoPai string `json:"parent_institution,omitempty"` // comunidade: instituicao do cadastro
+	MapURL         string `json:"map_url,omitempty"`            // universidade: URL de mapa (cadastro / PUT)
+
+	Vagas    []ResumoPublicacaoOrganizacao `json:"jobs,omitempty"`
+	Eventos  []ResumoPublicacaoOrganizacao `json:"events,omitempty"`
+	Grupos   []ResumoPublicacaoOrganizacao `json:"groups,omitempty"`
+	Posts    []ResumoPostOrganizacao       `json:"posts,omitempty"`
+	VagasTotal    int `json:"jobs_total"`
+	EventosTotal  int `json:"events_total"`
+	GruposTotal   int `json:"groups_total"`
+	PostsTotal    int `json:"posts_total"`
+}
+
 type PerfilUsuario struct {
+	ContextoPerfil     string                    `json:"profile_context"` // "user" | "organization"
+	TipoPerfil         string                    `json:"profile_type"`    // estudante | comunidade | empresa | universidade
+	PapelConta         string                    `json:"role"`              // padrao | comunidade | empresa | universidade | sistema_admin
 	Identificador      string                    `json:"id"`
 	Nome               string                    `json:"name"`
 	URLImagemCapa      string                    `json:"cover_image_url"`
@@ -26,4 +58,5 @@ type PerfilUsuario struct {
 	TopicosFavoritos   []string                  `json:"favorite_topics"`
 	Especialidades     []string                  `json:"specialties"`
 	DestaqueComunidade *DestaqueComunidadePerfil `json:"community_highlight"`
+	PainelOrganizacao  *PainelOrganizacaoPerfil   `json:"organization_panel,omitempty"`
 }

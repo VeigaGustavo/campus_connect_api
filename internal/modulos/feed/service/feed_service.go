@@ -18,7 +18,18 @@ func (servico *FeedService) Feed(contexto context.Context, filtro string, grupos
 	return RespostaFeed{Itens: itens}, nil
 }
 
+func (servico *FeedService) ListarPosts(contexto context.Context, usuarioID string, filtro FiltroListarPosts) (RespostaListaPosts, error) {
+	return servico.repositorio.ListarPosts(contexto, usuarioID, filtro)
+}
+
 func (servico *FeedService) CriarPost(contexto context.Context, criadoPor string, corpo RequisicaoCriarPost) (PostFeedDetalhe, error) {
+	if err := validarCriarPost(corpo); err != nil {
+		return PostFeedDetalhe{}, err
+	}
+	corpo.Anexos = normalizarAnexos(corpo.Anexos)
+	if corpo.EscopoPublicacao == "" {
+		corpo.EscopoPublicacao = "all"
+	}
 	return servico.repositorio.CriarPost(contexto, criadoPor, corpo)
 }
 

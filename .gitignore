@@ -24,3 +24,6 @@ vendor/
 .env
 .env.local
 *.pem
+
+# Uploads locais (fotos de perfil)
+/data/uploads/

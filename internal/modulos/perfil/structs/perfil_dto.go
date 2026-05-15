@@ -6,6 +6,9 @@ type RequisicaoAtualizarPerfil struct {
 	Curso            string   `json:"course"`
 	Semestre         string   `json:"semester"`
 	Instituicao      string   `json:"institution_name"`
+	MapURL           string   `json:"map_url,omitempty"` // universidade: URL (embed, Google Maps, etc.)
+	URLImagemAvatar  *string  `json:"avatar_image_url,omitempty"` // nil = nao alterar; "" = limpar
+	URLImagemCapa    *string  `json:"cover_image_url,omitempty"`
 	Interesses       []string `json:"interests"`
 	TopicosFavoritos []string `json:"favorite_topics"`
 	Especialidades   []string `json:"specialties"`
@@ -22,4 +25,14 @@ type ItemHistoricoPerfil struct {
 
 type RespostaHistoricoPerfil struct {
 	Itens []ItemHistoricoPerfil `json:"items"`
+}
+
+// RespostaUploadImagemPerfil resposta leve apos POST /profile/avatar ou /profile/cover.
+// Varias chaves para compatibilidade com parsers do Flutter.
+type RespostaUploadImagemPerfil struct {
+	URLImagemAvatar string `json:"avatar_image_url,omitempty"`
+	URLAvatar       string `json:"avatar_url,omitempty"`
+	URL             string `json:"url,omitempty"`
+	URLImagemCapa   string `json:"cover_image_url,omitempty"`
+	URLCapa         string `json:"cover_url,omitempty"`
 }

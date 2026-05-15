@@ -31,7 +31,7 @@ func (handler *PerfilHTTPHandler) GETPerfil(resposta http.ResponseWriter, requis
 		respostas.EscreverErro(resposta, http.StatusUnauthorized, "unauthorized", "missing session")
 		return
 	}
-	out, err := handler.servicoPerfil.ObterPerfil(requisicao.Context(), sessao.UsuarioID)
+	out, err := handler.servicoPerfil.ObterPerfil(requisicao.Context(), sessao.UsuarioID, sessao.Perfil)
 	if err != nil {
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
@@ -50,7 +50,7 @@ func (handler *PerfilHTTPHandler) PUTPerfil(resposta http.ResponseWriter, requis
 		respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_json", "invalid request body")
 		return
 	}
-	out, err := handler.servicoPerfil.AtualizarPerfil(requisicao.Context(), sessao.UsuarioID, corpo)
+	out, err := handler.servicoPerfil.AtualizarPerfil(requisicao.Context(), sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
