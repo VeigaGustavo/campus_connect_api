@@ -31,7 +31,6 @@ func TestDecodeRegisterEmpresa_JSON(t *testing.T) {
 		t.Fatalf("profile_type: got %q", corpo.TipoPerfil)
 	}
 
-	// Simula o mesmo fluxo do serviço (sem DB)
 	corpo.TipoPerfil = strings.ToLower(strings.TrimSpace(corpo.TipoPerfil))
 	corpo.DataNascimento = normalizarDataNascimento(corpo.DataNascimento)
 	if corpo.Idade <= 0 {

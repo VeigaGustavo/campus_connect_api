@@ -56,7 +56,6 @@ type RequisicaoSalvarPost struct {
 	Salvo bool `json:"saved"`
 }
 
-// AutorPost expõe avatar_url no feed (contrato Flutter).
 type AutorPost struct {
 	Identificador string `json:"id"`
 	Nome          string `json:"name"`

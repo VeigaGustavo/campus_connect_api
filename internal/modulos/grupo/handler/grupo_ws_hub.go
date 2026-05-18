@@ -65,7 +65,6 @@ func (hub *HubChatGrupo) broadcast(grupoID string, tipoMensagem int, conteudo []
 	}
 }
 
-// EmitirMensagemChat envia evento chat_message para todos na sala (ex.: após POST /chat/messages).
 func (hub *HubChatGrupo) EmitirMensagemChat(grupoID string, mensagem grupoService.MensagemChatGrupo) {
 	payload, err := json.Marshal(map[string]any{
 		"event":   "chat_message",

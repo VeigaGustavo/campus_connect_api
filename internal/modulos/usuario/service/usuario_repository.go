@@ -17,7 +17,6 @@ type UsuarioInterno struct {
 	PerfilCodigo string
 }
 
-// ResultadoCadastroComunidade IDs criados no register de profile_type=comunidade.
 type ResultadoCadastroComunidade struct {
 	CommunityID string
 	GroupID     string

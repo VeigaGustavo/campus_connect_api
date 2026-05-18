@@ -9,8 +9,17 @@ import (
 	"os"
 	"strings"
 
+	"campus_connect_api/internal/versao"
+
 	"github.com/gin-gonic/gin"
 )
+
+func GinAPIRevision() gin.HandlerFunc {
+	return func(contexto *gin.Context) {
+		contexto.Writer.Header().Set("X-Campus-API-Revision", versao.Revisao)
+		contexto.Next()
+	}
+}
 
 func GinRequestID() gin.HandlerFunc {
 	return func(contexto *gin.Context) {
@@ -62,7 +71,6 @@ func GinAceitarJSON() gin.HandlerFunc {
 			contexto.Next()
 			return
 		}
-		// Upload de imagem: multipart, nao exige Accept JSON.
 		if contexto.Request.Method == http.MethodPost {
 			p := contexto.Request.URL.Path
 			if strings.HasSuffix(p, "/profile/avatar") || strings.HasSuffix(p, "/profile/cover") || strings.HasSuffix(p, "/feed/attachments") {

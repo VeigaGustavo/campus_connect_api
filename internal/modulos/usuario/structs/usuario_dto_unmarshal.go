@@ -16,7 +16,6 @@ func compactJSONKey(s string) string {
 	return b.String()
 }
 
-// UnmarshalJSON aceita snake_case, camelCase, chaves com maiúsculas e cpf/cnpj como número JSON.
 func (r *RequisicaoCadastroUsuario) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {

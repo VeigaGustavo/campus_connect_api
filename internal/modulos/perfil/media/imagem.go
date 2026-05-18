@@ -27,7 +27,6 @@ var (
 	ErrImagemVazia     = errors.New("imagem vazia ou invalida")
 )
 
-// ProcessarAvatar redimensiona e comprime para JPEG (quadrado).
 func ProcessarAvatar(origem io.Reader) ([]byte, error) {
 	img, err := decodificarLimitado(origem)
 	if err != nil {
@@ -38,7 +37,6 @@ func ProcessarAvatar(origem io.Reader) ([]byte, error) {
 	return codificarJPEG(alvo)
 }
 
-// ProcessarCapa redimensiona e comprime para JPEG (retangulo largo).
 func ProcessarCapa(origem io.Reader) ([]byte, error) {
 	img, err := decodificarLimitado(origem)
 	if err != nil {

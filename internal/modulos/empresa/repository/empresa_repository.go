@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"campus_connect_api/internal/comum/horario"
 	comum "campus_connect_api/internal/modulos/comum"
 	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
@@ -32,15 +33,13 @@ ORDER BY criado_em DESC`
 		return nil, err
 	}
 	defer rows.Close()
-	var out []empresaService.Oportunidade
+	out := make([]empresaService.Oportunidade, 0)
 	for rows.Next() {
 		o, err := scanLinhaOportunidade(rows)
 		if err != nil {
 			return nil, err
 		}
-		if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
-			return nil, err
-		}
+		repositoryutil.CarregarPerfilPublicoAutorOpcional(contexto, repositorio.pool, o.AutorID, &o.Autor)
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -59,14 +58,12 @@ FROM oportunidades WHERE id = $1::uuid`
 		}
 		return empresaService.Oportunidade{}, false, err
 	}
-	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, o.AutorID, &o.Autor); err != nil {
-		return empresaService.Oportunidade{}, false, err
-	}
+	repositoryutil.CarregarPerfilPublicoAutorOpcional(contexto, repositorio.pool, o.AutorID, &o.Autor)
 	return o, true, nil
 }
 
 func (repositorio *empresaRepositoryPostgres) InserirOportunidade(contexto context.Context, criadoPor string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	deadline, err := empresaService.ParsePrazoCandidatura(corpo.PrazoCandidatura)
+	deadline, err := horario.ParseISO8601(corpo.PrazoCandidatura)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
 	}
@@ -145,7 +142,7 @@ func (repositorio *empresaRepositoryPostgres) atualizarOportunidadeComPerfil(con
 	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return empresaService.Oportunidade{}, err
 	}
-	deadline, err := empresaService.ParsePrazoCandidatura(corpo.PrazoCandidatura)
+	deadline, err := horario.ParseISO8601(corpo.PrazoCandidatura)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
 	}

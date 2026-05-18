@@ -15,7 +15,6 @@ import (
 
 const maxMultipartPerfil = 6 << 20
 
-// RegistrarRotasUploadGIN expoe POST multipart de avatar/capa (registar em http.go).
 func (handler *PerfilHTTPHandler) RegistrarRotasUploadGIN(grupo *gin.RouterGroup) {
 	grupo.POST("/profile/avatar", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.POSTImagemPerfil("avatar"))))
 	grupo.POST("/profile/cover", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.POSTImagemPerfil("cover"))))

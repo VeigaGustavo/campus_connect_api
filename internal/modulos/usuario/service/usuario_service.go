@@ -25,10 +25,7 @@ func NovoUsuarioService(repositorio UsuarioRepository) *UsuarioService {
 }
 
 func (servico *UsuarioService) RegistrarNovoUsuario(contexto context.Context, corpo RequisicaoCadastroUsuario) (map[string]any, error) {
-	corpo.TipoPerfil = strings.TrimSpace(corpo.TipoPerfil)
-	corpo.TipoPerfil = strings.TrimPrefix(corpo.TipoPerfil, "\ufeff")
-	corpo.TipoPerfil = strings.TrimSuffix(corpo.TipoPerfil, "\ufeff")
-	corpo.TipoPerfil = strings.ToLower(corpo.TipoPerfil)
+	corpo.TipoPerfil = strings.ToLower(strings.Trim(strings.TrimSpace(corpo.TipoPerfil), "\ufeff"))
 	corpo.DataNascimento = normalizarDataNascimento(corpo.DataNascimento)
 	if corpo.Idade <= 0 {
 		if idade, ok := idadeAPartirDeDataNascimento(strings.TrimSpace(corpo.DataNascimento)); ok {
@@ -110,7 +107,6 @@ func SessaoParaRespostaUsuario(sessao segurancaAuth.SessaoUsuario) modelos.Usuar
 	}
 }
 
-// normalizarDataNascimento aceita YYYY-MM-DD ou ISO completo (ex.: Flutter DateTime.toIso8601String).
 func normalizarDataNascimento(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -131,7 +127,6 @@ func normalizarDataNascimento(s string) string {
 	return s
 }
 
-// idadeAPartirDeDataNascimento espera data no formato YYYY-MM-DD (RFC 3339 só a parte da data).
 func idadeAPartirDeDataNascimento(s string) (int, bool) {
 	if s == "" {
 		return 0, false

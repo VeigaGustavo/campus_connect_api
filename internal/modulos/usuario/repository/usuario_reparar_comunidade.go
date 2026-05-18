@@ -8,7 +8,6 @@ import (
 	usuarioService "campus_connect_api/internal/modulos/usuario/service"
 )
 
-// RepararComunidadesSemGrupo cria comunidade + grupo para cadastros comunidade antigos sem grupo.
 func (repositorio *usuarioRepositoryPostgres) RepararComunidadesSemGrupo(contexto context.Context) (int, error) {
 	const sql = `
 SELECT cu.usuario_id::text, cu.details_json

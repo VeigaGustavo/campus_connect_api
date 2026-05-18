@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// SalvarJPEG grava bytes em subpasta (avatars|covers) e devolve caminho relativo (/uploads/...).
 func SalvarJPEG(dirBase, subpasta, nomeArquivo string, conteudo []byte) (string, error) {
 	dir := filepath.Join(dirBase, subpasta)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -20,7 +19,6 @@ func SalvarJPEG(dirBase, subpasta, nomeArquivo string, conteudo []byte) (string,
 	return "/uploads/" + subpasta + "/" + nomeArquivo, nil
 }
 
-// ResolverDirUploads retorna diretorio de gravacao (UPLOAD_DIR ou ./data/uploads).
 func ResolverDirUploads() string {
 	if v := strings.TrimSpace(os.Getenv("UPLOAD_DIR")); v != "" {
 		return v
@@ -28,8 +26,6 @@ func ResolverDirUploads() string {
 	return "./data/uploads"
 }
 
-// URLPublica prefixa PUBLIC_BASE_URL ao caminho relativo (/uploads/...).
-// AbsolutizarURL prefixa PUBLIC_BASE_URL em caminhos relativos (/uploads/...).
 func AbsolutizarURL(caminho string) string {
 	caminho = strings.TrimSpace(caminho)
 	if caminho == "" {
@@ -52,7 +48,6 @@ func URLPublica(caminhoRelativo string) string {
 	return base + caminhoRelativo
 }
 
-// NomeArquivoPerfil gera nome estavel por usuario e tipo.
 func NomeArquivoPerfil(usuarioID, tipo string) string {
 	id := strings.ReplaceAll(usuarioID, "-", "")
 	return fmt.Sprintf("%s_%s.jpg", tipo, id)

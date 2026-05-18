@@ -2,7 +2,6 @@ package model
 
 import comum "campus_connect_api/internal/modulos/comum"
 
-// AutorGrupo expõe avatar_url conforme contrato Flutter em GET /api/groups.
 type AutorGrupo struct {
 	Identificador string `json:"id"`
 	Nome          string `json:"name"`

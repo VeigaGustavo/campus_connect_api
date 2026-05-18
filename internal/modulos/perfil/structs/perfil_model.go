@@ -21,7 +21,6 @@ type ResumoPostOrganizacao struct {
 	CriadoEm      string `json:"created_at"`
 }
 
-// PainelOrganizacaoPerfil agrega conteudo publicado pela conta (vagas, eventos, grupos, posts).
 type PainelOrganizacaoPerfil struct {
 	InstituicaoPai string `json:"parent_institution,omitempty"` // comunidade: instituicao do cadastro
 	MapURL         string `json:"map_url,omitempty"`            // universidade: URL de mapa (cadastro / PUT)

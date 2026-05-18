@@ -24,7 +24,6 @@ var (
 	ErrArquivoVazio    = errors.New("arquivo vazio")
 )
 
-// SalvarAnexoFeed grava imagem ou video em uploads/feed e devolve caminho /uploads/feed/...
 func SalvarAnexoFeed(tipo string, nomeOriginal string, origem io.Reader) (caminhoRelativo string, err error) {
 	tipo = strings.ToLower(strings.TrimSpace(tipo))
 	switch tipo {
@@ -126,7 +125,6 @@ func nomeAleatorio(ext string) (string, error) {
 	return fmt.Sprintf("%s%s", hex.EncodeToString(buf[:]), ext), nil
 }
 
-// NomeExibicao devolve nome seguro para resposta (original ou derivado do path).
 func NomeExibicao(nomeOriginal, caminhoRelativo string) string {
 	nome := strings.TrimSpace(filepath.Base(nomeOriginal))
 	if nome != "" && nome != "." {

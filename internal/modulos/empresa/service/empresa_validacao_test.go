@@ -2,20 +2,6 @@ package service
 
 import "testing"
 
-func TestParsePrazoCandidatura_FlutterSemFuso(t *testing.T) {
-	casos := []string{
-		"2026-08-31T23:59:59.000Z",
-		"2026-08-31T23:59:59.000",
-		"2026-06-30T00:00:00.000",
-		"2026-08-31",
-	}
-	for _, s := range casos {
-		if _, err := ParsePrazoCandidatura(s); err != nil {
-			t.Fatalf("parse %q: %v", s, err)
-		}
-	}
-}
-
 func TestValidarRequisicaoOportunidade_OK(t *testing.T) {
 	corpo := RequisicaoCriarOportunidade{
 		Titulo:            "Dev",

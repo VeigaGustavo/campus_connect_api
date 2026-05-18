@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
+	"campus_connect_api/internal/comum/horario"
 	model "campus_connect_api/internal/modulos/empresa/structs"
 )
 
@@ -36,7 +36,7 @@ func validarRequisicaoOportunidade(corpo RequisicaoCriarOportunidade) error {
 	if strings.TrimSpace(corpo.PrazoCandidatura) == "" {
 		return fmt.Errorf("%w: apply_deadline obrigatorio", ErrOportunidadeInvalida)
 	}
-	if _, err := ParsePrazoCandidatura(corpo.PrazoCandidatura); err != nil {
+	if _, err := horario.ParseISO8601(corpo.PrazoCandidatura); err != nil {
 		return fmt.Errorf("%w: apply_deadline invalido (use ISO-8601, ex. 2026-08-31T23:59:59Z ou 2026-08-31T23:59:59.000)", ErrOportunidadeInvalida)
 	}
 	wl := strings.TrimSpace(corpo.ModalidadeLocal)
@@ -70,30 +70,4 @@ func validarRequisicaoOportunidade(corpo RequisicaoCriarOportunidade) error {
 		vistos[chave] = struct{}{}
 	}
 	return nil
-}
-
-// ParsePrazoCandidatura aceita RFC3339, ISO sem fuso (Flutter DateTime.toIso8601String) e só data.
-func ParsePrazoCandidatura(s string) (time.Time, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return time.Time{}, errors.New("vazio")
-	}
-	layouts := []string{
-		time.RFC3339Nano,
-		time.RFC3339,
-		"2006-01-02T15:04:05.000",
-		"2006-01-02T15:04:05",
-		"2006-01-02",
-	}
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t.UTC(), nil
-		}
-	}
-	if !strings.ContainsAny(s, "Zz+-") && strings.Contains(s, "T") {
-		if t, err := time.Parse(time.RFC3339, s+"Z"); err == nil {
-			return t.UTC(), nil
-		}
-	}
-	return time.Time{}, errors.New("formato nao reconhecido")
 }

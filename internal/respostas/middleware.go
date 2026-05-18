@@ -13,14 +13,12 @@ type chaveContexto string
 
 const chaveRequestID chaveContexto = "request_id"
 
-// RequestIDFromContext retorna o request id propagado pelo middleware (se houver).
 func RequestIDFromContext(contexto context.Context) string {
 	valorContexto := contexto.Value(chaveRequestID)
 	s, _ := valorContexto.(string)
 	return s
 }
 
-// EncadearRequestID adiciona X-Request-Id e propaga no contexto para logs downstream.
 func EncadearRequestID(proximo http.Handler) http.Handler {
 	return http.HandlerFunc(func(resposta http.ResponseWriter, requisicao *http.Request) {
 		rid := strings.TrimSpace(requisicao.Header.Get("X-Request-Id"))
@@ -35,8 +33,6 @@ func EncadearRequestID(proximo http.Handler) http.Handler {
 	})
 }
 
-// EncadearCORS permite GET/POST/PUT/DELETE (e preflight OPTIONS) a partir da origem configurada.
-// Variável CORS_ORIGIN: URL exata (ex. http://localhost:5173). Vazio = "*".
 func EncadearCORS(proximo http.Handler) http.Handler {
 	return http.HandlerFunc(func(resposta http.ResponseWriter, requisicao *http.Request) {
 		origem := strings.TrimSpace(os.Getenv("CORS_ORIGIN"))
@@ -54,7 +50,6 @@ func EncadearCORS(proximo http.Handler) http.Handler {
 	})
 }
 
-// EncadearAceitarJSON exige Accept vazio, */* ou application/json (GET/HEAD).
 func EncadearAceitarJSON(proximo http.Handler) http.Handler {
 	return http.HandlerFunc(func(resposta http.ResponseWriter, requisicao *http.Request) {
 		if requisicao.Method == http.MethodOptions {

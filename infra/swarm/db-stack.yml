@@ -7,20 +7,63 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-campus_connect}
       POSTGRES_USER: ${POSTGRES_USER:-campus_connect}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS_MB:-128}MB
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_MB:-256}MB
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-50}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM_MB:-4}MB
+      - -c
+      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM_MB:-64}MB
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - log_min_duration_statement=${POSTGRES_LOG_SLOW_MS:-500}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     secrets:
       - postgres_password
     networks:
       - campus_overlay
+    shm_size: ${POSTGRES_SHM_SIZE:-128mb}
     deploy:
       mode: replicated
       replicas: 1
       restart_policy:
         condition: on-failure
+        delay: 5s
+        max_attempts: 3
       placement:
         constraints:
           - node.role == manager
+      resources:
+        limits:
+          cpus: "${POSTGRES_CPU_LIMIT:-1.0}"
+          memory: ${POSTGRES_MEM_LIMIT:-512M}
+        reservations:
+          cpus: "${POSTGRES_CPU_RESERVE:-0.25}"
+          memory: ${POSTGRES_MEM_RESERVE:-256M}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campus_connect} -d ${POSTGRES_DB:-campus_connect}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 secrets:
   postgres_password:

@@ -70,7 +70,6 @@ func main() {
 }
 
 func carregarEnvLocal() {
-	// If env is already provided externally, keep it as source of truth.
 	if strings.TrimSpace(os.Getenv("DATABASE_URL")) != "" || strings.TrimSpace(os.Getenv("DATABASE_URL_FILE")) != "" {
 		return
 	}

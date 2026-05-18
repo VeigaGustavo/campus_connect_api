@@ -27,8 +27,6 @@ type RespostaHistoricoPerfil struct {
 	Itens []ItemHistoricoPerfil `json:"items"`
 }
 
-// RespostaUploadImagemPerfil resposta leve apos POST /profile/avatar ou /profile/cover.
-// Varias chaves para compatibilidade com parsers do Flutter.
 type RespostaUploadImagemPerfil struct {
 	URLImagemAvatar string `json:"avatar_image_url,omitempty"`
 	URLAvatar       string `json:"avatar_url,omitempty"`

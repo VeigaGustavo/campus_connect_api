@@ -15,15 +15,33 @@ As credenciais ficam em `docker secrets`.
 docker swarm init
 ```
 
-## 2) Build da imagem da API
+## 2) Build da imagem da API (otimizado)
 
-Na raiz do projeto:
+Na raiz do projeto, com BuildKit (cache de módulos Go + binário `-s -w`):
 
 ```bash
+export DOCKER_BUILDKIT=1
 docker build -t campus_connect_api:latest .
 ```
 
+Imagem final: Alpine + binário estático (~25–35 MB comprimida, conforme dependências).
+Runtime: `GIN_MODE=release` definido no `api-stack.yml`.
+
 Se for usar em outro node/cluster, publique em registry e ajuste `API_IMAGE`.
+
+### Performance (resumo)
+
+| Componente | Escolha | Motivo |
+|------------|---------|--------|
+| API build | `CGO_ENABLED=0`, `-ldflags="-s -w"`, `-trimpath` | Binário menor e sem libc |
+| API runtime | Alpine + `ca-certificates` + `wget` (health) | Leve; sem shell no distroless impede healthcheck |
+| Postgres | `postgres:16-alpine` | Imagem oficial mínima |
+| Postgres tuning | `shared_buffers`, `effective_cache_size`, `shm_size` | Ver `.env.db.example` |
+| Swarm | `resources.limits` + log rotation | Evita OOM e disco cheio |
+
+**Host 1 GB RAM:** `POSTGRES_SHARED_BUFFERS_MB=64`, `POSTGRES_EFFECTIVE_CACHE_MB=128`, `API_MEM_LIMIT=128M`, `POSTGRES_MEM_LIMIT=384M`.
+
+**Host 4 GB+:** pode subir buffers para 256/512 MB e `API_REPLICAS=2` se tiver load balancer.
 
 ## 3) Criar os secrets
 

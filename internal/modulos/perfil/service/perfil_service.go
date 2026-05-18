@@ -61,7 +61,6 @@ var (
 	ErrCampoArquivoAusente = errors.New("campo file ou image obrigatorio")
 )
 
-// EnviarImagemPerfil processa, grava e persiste URL (sem recarregar organization_panel).
 func (servico *PerfilService) EnviarImagemPerfil(contexto context.Context, usuarioID, perfilCodigoConta, tipo string, origem io.Reader) (RespostaUploadImagemPerfil, error) {
 	tipo = strings.ToLower(strings.TrimSpace(tipo))
 	var processado []byte

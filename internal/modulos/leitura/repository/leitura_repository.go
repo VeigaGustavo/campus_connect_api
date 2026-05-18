@@ -39,20 +39,11 @@ func (repositorio *leituraRepositoryPostgres) ListarLeituraSemanal(contexto cont
 		if err := rows.Scan(&it.Identificador, &k, &it.Titulo, &it.Fonte, &it.Resumo, &it.URLImagem, &it.RotuloMeta, &it.AutorID); err != nil {
 			return nil, err
 		}
-		carregarAutorLeituraOpcional(contexto, repositorio.pool, &it)
+		repositoryutil.CarregarPerfilPublicoAutorOpcional(contexto, repositorio.pool, it.AutorID, &it.Autor)
 		it.Tipo = leituraService.TipoItemLeitura(k)
 		out = append(out, it)
 	}
 	return out, rows.Err()
-}
-
-func carregarAutorLeituraOpcional(contexto context.Context, pool *pgxpool.Pool, it *leituraService.ItemLeituraSemanal) {
-	if it.AutorID == "" {
-		return
-	}
-	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, pool, it.AutorID, &it.Autor); err != nil {
-		it.Autor.Identificador = it.AutorID
-	}
 }
 
 func (repositorio *leituraRepositoryPostgres) InserirLeituraSemanal(contexto context.Context, criadoPor string, corpo leituraService.RequisicaoLeituraSemanal) (leituraService.ItemLeituraSemanal, error) {
@@ -106,7 +97,7 @@ func (repositorio *leituraRepositoryPostgres) obterLeituraSemanal(contexto conte
 		}
 		return leituraService.ItemLeituraSemanal{}, false, err
 	}
-	carregarAutorLeituraOpcional(contexto, repositorio.pool, &it)
+	repositoryutil.CarregarPerfilPublicoAutorOpcional(contexto, repositorio.pool, it.AutorID, &it.Autor)
 	it.Tipo = leituraService.TipoItemLeitura(k)
 	return it, true, nil
 }

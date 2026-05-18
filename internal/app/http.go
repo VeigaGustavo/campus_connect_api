@@ -66,17 +66,14 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 	engine.Use(respostas.GinRequestID())
-	engine.Use(func(contexto *gin.Context) {
-		contexto.Writer.Header().Set("X-Campus-API-Revision", versao.Revisao)
-		contexto.Next()
-	})
+	engine.Use(respostas.GinAPIRevision())
 	engine.Use(respostas.GinCORS())
 	engine.Use(respostas.GinAceitarJSON())
 	engine.GET("/health", func(contexto *gin.Context) {
 		contexto.JSON(200, map[string]any{
-			"status":        "ok",
+			"status":       "ok",
 			"api_revision": versao.Revisao,
-			"features":      []string{"feed_posts_list", "feed_attachments_upload", "groups_join", "groups_members", "chat_ws_token", "register_detail_errors"},
+			"features":     versao.Features,
 		})
 	})
 	engine.Static("/uploads", media.ResolverDirUploads())
