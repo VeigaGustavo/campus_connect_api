@@ -86,7 +86,7 @@ func (handler *GrupoHTTPHandler) PUTGrupo(resposta http.ResponseWriter, requisic
 	}
 	grupoAtualizado, err := handler.servicoGrupo.AtualizarGrupo(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, grupoAtualizado)
@@ -96,7 +96,7 @@ func (handler *GrupoHTTPHandler) DELETEGrupo(resposta http.ResponseWriter, requi
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoGrupo.RemoverGrupo(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
@@ -251,15 +251,4 @@ func (handler *GrupoHTTPHandler) GETMembrosGrupo(resposta http.ResponseWriter, r
 		membros = []grupoService.MembroGrupo{}
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, membros)
-}
-
-func (handler *GrupoHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, comum.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, comum.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

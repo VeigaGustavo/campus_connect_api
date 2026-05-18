@@ -6,8 +6,8 @@ type RequisicaoAtualizarPerfil struct {
 	Curso            string   `json:"course"`
 	Semestre         string   `json:"semester"`
 	Instituicao      string   `json:"institution_name"`
-	MapURL           string   `json:"map_url,omitempty"` // universidade: URL (embed, Google Maps, etc.)
-	URLImagemAvatar  *string  `json:"avatar_image_url,omitempty"` // nil = nao alterar; "" = limpar
+	MapURL           string   `json:"map_url,omitempty"`
+	URLImagemAvatar  *string  `json:"avatar_image_url,omitempty"`
 	URLImagemCapa    *string  `json:"cover_image_url,omitempty"`
 	Interesses       []string `json:"interests"`
 	TopicosFavoritos []string `json:"favorite_topics"`

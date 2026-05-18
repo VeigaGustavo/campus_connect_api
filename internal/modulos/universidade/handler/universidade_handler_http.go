@@ -2,10 +2,8 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
-	comum "campus_connect_api/internal/modulos/comum"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	universidadeService "campus_connect_api/internal/modulos/universidade/service"
 	"campus_connect_api/internal/respostas"
@@ -65,7 +63,7 @@ func (handler *UniversidadeHTTPHandler) PUTAvisoUniversidade(resposta http.Respo
 	}
 	avisoAtualizado, err := handler.servicoUniversidade.AtualizarAvisoUniversidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, avisoAtualizado)
@@ -75,19 +73,9 @@ func (handler *UniversidadeHTTPHandler) DELETEAvisoUniversidade(resposta http.Re
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoUniversidade.RemoverAvisoUniversidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (handler *UniversidadeHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, comum.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, comum.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
-}

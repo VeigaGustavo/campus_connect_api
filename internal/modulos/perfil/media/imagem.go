@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	MaxBytesEntrada = 5 << 20 // 5 MiB
+	MaxBytesEntrada = 5 << 20
 	qualidadeJPEG   = 82
 	larguraAvatar   = 256
 	alturaAvatar    = 256

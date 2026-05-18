@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	comum "campus_connect_api/internal/modulos/comum"
 	feedService "campus_connect_api/internal/modulos/feed/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -183,7 +182,7 @@ func (handler *FeedHTTPHandler) PUTReacaoPost(resposta http.ResponseWriter, requ
 		return
 	}
 	if err := handler.servicoFeed.ReagirPost(requisicao.Context(), postID, sessao.UsuarioID, corpo.Reacao); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "ok"})
@@ -198,7 +197,7 @@ func (handler *FeedHTTPHandler) PUTReacaoComentario(resposta http.ResponseWriter
 		return
 	}
 	if err := handler.servicoFeed.ReagirComentario(requisicao.Context(), comentarioID, sessao.UsuarioID, corpo.Reacao); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "ok"})
@@ -213,19 +212,8 @@ func (handler *FeedHTTPHandler) PUTSalvarPost(resposta http.ResponseWriter, requ
 		return
 	}
 	if err := handler.servicoFeed.SalvarPost(requisicao.Context(), postID, sessao.UsuarioID, corpo.Salvo); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (handler *FeedHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, comum.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, comum.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

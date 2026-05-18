@@ -6,7 +6,7 @@ type RequisicaoCriarGrupo struct {
 	Descricao         string `json:"description"`
 	Nivel             string `json:"level"`
 	RotuloHorario     string `json:"schedule_label"`
-	Visibilidade      string `json:"visibility,omitempty"` // public | private
+	Visibilidade      string `json:"visibility,omitempty"`
 	EscopoPublicacao  string `json:"publish_scope,omitempty"`
 	IDGrupoPublicacao string `json:"publish_group_id,omitempty"`
 }

@@ -22,8 +22,8 @@ type ResumoPostOrganizacao struct {
 }
 
 type PainelOrganizacaoPerfil struct {
-	InstituicaoPai string `json:"parent_institution,omitempty"` // comunidade: instituicao do cadastro
-	MapURL         string `json:"map_url,omitempty"`            // universidade: URL de mapa (cadastro / PUT)
+	InstituicaoPai string `json:"parent_institution,omitempty"`
+	MapURL         string `json:"map_url,omitempty"`
 
 	Vagas    []ResumoPublicacaoOrganizacao `json:"jobs,omitempty"`
 	Eventos  []ResumoPublicacaoOrganizacao `json:"events,omitempty"`
@@ -36,9 +36,9 @@ type PainelOrganizacaoPerfil struct {
 }
 
 type PerfilUsuario struct {
-	ContextoPerfil     string                    `json:"profile_context"` // "user" | "organization"
-	TipoPerfil         string                    `json:"profile_type"`    // estudante | comunidade | empresa | universidade
-	PapelConta         string                    `json:"role"`              // padrao | comunidade | empresa | universidade | sistema_admin
+	ContextoPerfil     string                    `json:"profile_context"`
+	TipoPerfil         string                    `json:"profile_type"`
+	PapelConta         string                    `json:"role"`
 	Identificador      string                    `json:"id"`
 	Nome               string                    `json:"name"`
 	URLImagemCapa      string                    `json:"cover_image_url"`

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	comum "campus_connect_api/internal/modulos/comum"
 	leituraService "campus_connect_api/internal/modulos/leitura/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -80,7 +79,7 @@ func (handler *LeituraHTTPHandler) PUTLeituraSemanal(resposta http.ResponseWrite
 			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
 			return
 		}
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, it)
@@ -90,19 +89,8 @@ func (handler *LeituraHTTPHandler) DELETELeituraSemanal(resposta http.ResponseWr
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoLeitura.RemoverLeituraSemanal(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
-}
-
-func (handler *LeituraHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, comum.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, comum.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

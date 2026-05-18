@@ -11,7 +11,7 @@ type RequisicaoCadastroUsuario struct {
 	TipoPerfil           string `json:"profile_type"`
 	NomeCompleto         string `json:"full_name"`
 	Idade                int    `json:"age"`
-	DataNascimento       string `json:"birth_date,omitempty"` // YYYY-MM-DD; se age não vier, a idade é calculada daqui
+	DataNascimento       string `json:"birth_date,omitempty"`
 	CPF                  string `json:"cpf"`
 	Instituicao          string `json:"institution"`
 	Cidade               string `json:"city"`
@@ -22,7 +22,7 @@ type RequisicaoCadastroUsuario struct {
 	NomeComunidade       string `json:"community_name,omitempty"`
 	TituloGrupo          string `json:"group_title,omitempty"`
 	DescricaoGrupo       string `json:"group_description,omitempty"`
-	VisibilidadeGrupo    string `json:"group_visibility,omitempty"` // public | private
+	VisibilidadeGrupo    string `json:"group_visibility,omitempty"`
 	NomeEmpresa          string `json:"company_name,omitempty"`
 	CNPJ                 string `json:"company_cnpj,omitempty"`
 	DescricaoEmpresa     string `json:"company_description,omitempty"`

@@ -28,7 +28,7 @@ type GrupoEstudo struct {
 	Nivel         NivelGrupoEstudo `json:"level"`
 	TotalMembros  int              `json:"member_count"`
 	RotuloHorario string           `json:"schedule_label"`
-	Visibilidade  string           `json:"visibility"` // public | private
+	Visibilidade  string           `json:"visibility"`
 }
 
 type MensagemChatGrupo struct {

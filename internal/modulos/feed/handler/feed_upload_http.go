@@ -12,7 +12,7 @@ import (
 	"campus_connect_api/internal/respostas"
 )
 
-const maxMultipartFeedAnexo = 84 << 20 // 80 MiB video + margem form
+const maxMultipartFeedAnexo = 84 << 20
 
 func (handler *FeedHTTPHandler) POSTAnexoFeed(resposta http.ResponseWriter, requisicao *http.Request) {
 	if _, ok := auth.SessaoDaRequisicao(requisicao); !ok {

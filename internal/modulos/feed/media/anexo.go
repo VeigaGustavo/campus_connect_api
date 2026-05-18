@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	MaxBytesImagemFeed = 8 << 20  // 8 MiB
-	MaxBytesVideoFeed  = 80 << 20 // 80 MiB
+	MaxBytesImagemFeed = 8 << 20
+	MaxBytesVideoFeed  = 80 << 20
 	subpastaFeed       = "feed"
 )
 
