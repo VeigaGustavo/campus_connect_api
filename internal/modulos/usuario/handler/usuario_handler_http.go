@@ -19,11 +19,6 @@ func NovoUsuarioHTTPHandler(servicoUsuario *usuarioService.UsuarioService) *Usua
 	return &UsuarioHTTPHandler{servicoUsuario: servicoUsuario}
 }
 
-func (handler *UsuarioHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("POST /auth/register", handler.POSTCadastroUsuarioPublico)
-	mux.HandleFunc("POST /admin/users", auth.ExigirPerfis("sistema_admin")(handler.POSTCriarUsuarioAdmin))
-}
-
 func (handler *UsuarioHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.POST("/auth/register", respostas.AdaptadorHTTP(handler.POSTCadastroUsuarioPublico))
 	grupo.POST("/admin/users", respostas.AdaptadorHTTP(auth.ExigirPerfis("sistema_admin")(handler.POSTCriarUsuarioAdmin)))
@@ -38,7 +33,7 @@ func (handler *UsuarioHTTPHandler) POSTCadastroUsuarioPublico(resposta http.Resp
 	out, err := handler.servicoUsuario.RegistrarNovoUsuario(requisicao.Context(), corpo)
 	if err != nil {
 		if errors.Is(err, usuarioService.ErrCadastroInvalido) {
-			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_registration", "missing or invalid fields")
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_registration", err.Error())
 			return
 		}
 		respostas.EscreverErro(resposta, http.StatusBadRequest, "registration_failed", err.Error())

@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 
+	grupoService "campus_connect_api/internal/modulos/grupo/service"
 	"github.com/gorilla/websocket"
 )
 
@@ -61,4 +63,15 @@ func (hub *HubChatGrupo) broadcast(grupoID string, tipoMensagem int, conteudo []
 	for conexao := range conexoes {
 		_ = conexao.WriteMessage(tipoMensagem, conteudo)
 	}
+}
+
+func (hub *HubChatGrupo) EmitirMensagemChat(grupoID string, mensagem grupoService.MensagemChatGrupo) {
+	payload, err := json.Marshal(map[string]any{
+		"event":   "chat_message",
+		"message": mensagem,
+	})
+	if err != nil {
+		return
+	}
+	hub.broadcast(grupoID, websocket.TextMessage, payload)
 }

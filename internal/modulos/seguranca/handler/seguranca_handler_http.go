@@ -21,11 +21,6 @@ func NovoSegurancaHTTPHandler(servicoSeguranca *segurancaService.SegurancaServic
 	return &SegurancaHTTPHandler{servicoSeguranca: servicoSeguranca}
 }
 
-func (handler *SegurancaHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("POST /auth/login", handler.POSTLogin)
-	mux.HandleFunc("GET /auth/me", auth.ObrigarAutenticacao(handler.GETSessaoAtual))
-}
-
 func (handler *SegurancaHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.POST("/auth/login", respostas.AdaptadorHTTP(handler.POSTLogin))
 	grupo.GET("/auth/me", respostas.AdaptadorHTTP(auth.ObrigarAutenticacao(handler.GETSessaoAtual)))

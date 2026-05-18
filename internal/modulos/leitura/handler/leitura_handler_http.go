@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
 	leituraService "campus_connect_api/internal/modulos/leitura/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -20,13 +19,6 @@ func NovoLeituraHTTPHandler(servicoLeitura *leituraService.LeituraService) *Leit
 	return &LeituraHTTPHandler{servicoLeitura: servicoLeitura}
 }
 
-func (handler *LeituraHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /reading/weekly", handler.GETLeituraSemanal)
-	mux.HandleFunc("POST /reading/weekly", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.POSTCriarLeituraSemanal))
-	mux.HandleFunc("PUT /reading/weekly/{id}", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.PUTLeituraSemanal))
-	mux.HandleFunc("DELETE /reading/weekly/{id}", auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.DELETELeituraSemanal))
-}
-
 func (handler *LeituraHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.GET("/reading/weekly", respostas.AdaptadorHTTP(handler.GETLeituraSemanal))
 	grupo.POST("/reading/weekly", respostas.AdaptadorHTTP(auth.ExigirPerfis("universidade", "comunidade", "empresa", "sistema_admin")(handler.POSTCriarLeituraSemanal)))
@@ -35,12 +27,19 @@ func (handler *LeituraHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 }
 
 func (handler *LeituraHTTPHandler) GETLeituraSemanal(resposta http.ResponseWriter, requisicao *http.Request) {
-	out, err := handler.servicoLeitura.ListarLeituraSemanal(requisicao.Context())
+	out, err := handler.servicoLeitura.ListarLeituraSemanal(requisicao.Context(), requisicao.URL.Query().Get("kind"))
 	if err != nil {
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
-	respostas.EscreverJSON(resposta, http.StatusOK, out)
+	if out == nil {
+		out = []leituraService.ItemLeituraSemanal{}
+	}
+	respostas.EscreverJSON(resposta, http.StatusOK, leituraService.RespostaListaLeituraSemanal{Itens: out})
 }
 
 func (handler *LeituraHTTPHandler) POSTCriarLeituraSemanal(resposta http.ResponseWriter, requisicao *http.Request) {
@@ -56,6 +55,10 @@ func (handler *LeituraHTTPHandler) POSTCriarLeituraSemanal(resposta http.Respons
 	}
 	it, err := handler.servicoLeitura.CriarLeituraSemanal(requisicao.Context(), sessao.UsuarioID, corpo)
 	if err != nil {
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
@@ -72,7 +75,11 @@ func (handler *LeituraHTTPHandler) PUTLeituraSemanal(resposta http.ResponseWrite
 	}
 	it, err := handler.servicoLeitura.AtualizarLeituraSemanal(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, it)
@@ -82,19 +89,8 @@ func (handler *LeituraHTTPHandler) DELETELeituraSemanal(resposta http.ResponseWr
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoLeitura.RemoverLeituraSemanal(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
-}
-
-func (handler *LeituraHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

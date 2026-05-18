@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
+	comum "campus_connect_api/internal/modulos/comum"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -25,7 +25,7 @@ func NovoGrupoHTTPHandler(servicoGrupo *grupoService.GrupoService) *GrupoHTTPHan
 }
 
 func (handler *GrupoHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
-	grupo.GET("/groups", respostas.AdaptadorHTTP(handler.GETGrupos))
+	grupo.GET("/groups", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.GETGrupos)))
 	grupo.POST("/groups", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTCriarGrupo)))
 	grupo.PUT("/groups/:id", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.PUTGrupo)))
 	grupo.DELETE("/groups/:id", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.DELETEGrupo)))
@@ -40,6 +40,9 @@ func (handler *GrupoHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 	grupo.POST("/groups/:id/events", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTAssociarEventoGrupo)))
 	grupo.GET("/groups/:id/readings", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.GETLeiturasAssociadasGrupo)))
 	grupo.POST("/groups/:id/readings", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTAssociarLeituraGrupo)))
+	grupo.POST("/groups/:id/join", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTEntrarGrupo)))
+	grupo.POST("/groups/:id/join-requests", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTPedidoEntradaGrupo)))
+	grupo.GET("/groups/:id/members", respostas.AdaptadorHTTP(auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.GETMembrosGrupo)))
 }
 
 func (handler *GrupoHTTPHandler) GETGrupos(resposta http.ResponseWriter, requisicao *http.Request) {
@@ -47,6 +50,9 @@ func (handler *GrupoHTTPHandler) GETGrupos(resposta http.ResponseWriter, requisi
 	if err != nil {
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
+	}
+	if grupos == nil {
+		grupos = []grupoService.GrupoEstudo{}
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, grupos)
 }
@@ -80,7 +86,7 @@ func (handler *GrupoHTTPHandler) PUTGrupo(resposta http.ResponseWriter, requisic
 	}
 	grupoAtualizado, err := handler.servicoGrupo.AtualizarGrupo(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, grupoAtualizado)
@@ -90,7 +96,7 @@ func (handler *GrupoHTTPHandler) DELETEGrupo(resposta http.ResponseWriter, requi
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoGrupo.RemoverGrupo(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
@@ -98,7 +104,15 @@ func (handler *GrupoHTTPHandler) DELETEGrupo(resposta http.ResponseWriter, requi
 
 func (handler *GrupoHTTPHandler) GETMensagensChatGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
 	id := requisicao.PathValue("id")
-	respostas.EscreverJSON(resposta, http.StatusOK, handler.servicoGrupo.ListarMensagensGrupo(id))
+	mensagens, err := handler.servicoGrupo.ListarMensagensGrupo(requisicao.Context(), id)
+	if err != nil {
+		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if mensagens == nil {
+		mensagens = []grupoService.MensagemChatGrupo{}
+	}
+	respostas.EscreverJSON(resposta, http.StatusOK, mensagens)
 }
 
 func (handler *GrupoHTTPHandler) POSTMensagemChatGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
@@ -109,7 +123,12 @@ func (handler *GrupoHTTPHandler) POSTMensagemChatGrupo(resposta http.ResponseWri
 		respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_json", "invalid request body")
 		return
 	}
-	mensagem := handler.servicoGrupo.AdicionarMensagemGrupo(id, sessao.UsuarioID, corpo.Texto)
+	mensagem, err := handler.servicoGrupo.AdicionarMensagemGrupo(requisicao.Context(), id, sessao.UsuarioID, corpo.Texto)
+	if err != nil {
+		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	handler.hubChat.EmitirMensagemChat(id, mensagem)
 	respostas.EscreverJSON(resposta, http.StatusCreated, mensagem)
 }
 
@@ -156,7 +175,11 @@ func (handler *GrupoHTTPHandler) POSTReuniaoGrupo(resposta http.ResponseWriter, 
 
 func (handler *GrupoHTTPHandler) GETEventosAssociadosGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
 	id := requisicao.PathValue("id")
-	respostas.EscreverJSON(resposta, http.StatusOK, handler.servicoGrupo.ListarEventosAssociadosGrupo(id))
+	eventos := handler.servicoGrupo.ListarEventosAssociadosGrupo(id)
+	if eventos == nil {
+		eventos = []grupoService.AssociacaoGrupoEvento{}
+	}
+	respostas.EscreverJSON(resposta, http.StatusOK, eventos)
 }
 
 func (handler *GrupoHTTPHandler) POSTAssociarEventoGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
@@ -186,13 +209,46 @@ func (handler *GrupoHTTPHandler) POSTAssociarLeituraGrupo(resposta http.Response
 	respostas.EscreverJSON(resposta, http.StatusCreated, associacao)
 }
 
-func (handler *GrupoHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+func (handler *GrupoHTTPHandler) POSTEntrarGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
+	sessao, _ := auth.SessaoDaRequisicao(requisicao)
+	id := requisicao.PathValue("id")
+	if err := handler.servicoGrupo.EntrarGrupo(requisicao.Context(), id, sessao.UsuarioID); err != nil {
+		switch {
+		case errors.Is(err, comum.ErrNaoEncontrado):
+			respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "group not found")
+		case errors.Is(err, grupoService.ErrGrupoPrivado):
+			respostas.EscreverErro(resposta, http.StatusForbidden, "private_group", "use join-requests for private groups")
+		default:
+			respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		}
+		return
 	}
+	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "joined"})
+}
+
+func (handler *GrupoHTTPHandler) POSTPedidoEntradaGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
+	sessao, _ := auth.SessaoDaRequisicao(requisicao)
+	id := requisicao.PathValue("id")
+	if err := handler.servicoGrupo.PedirEntradaGrupo(requisicao.Context(), id, sessao.UsuarioID); err != nil {
+		if errors.Is(err, comum.ErrNaoEncontrado) {
+			respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "group not found")
+			return
+		}
+		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	respostas.EscreverJSON(resposta, http.StatusCreated, map[string]string{"status": "pending"})
+}
+
+func (handler *GrupoHTTPHandler) GETMembrosGrupo(resposta http.ResponseWriter, requisicao *http.Request) {
+	id := requisicao.PathValue("id")
+	membros, err := handler.servicoGrupo.ListarMembrosGrupo(requisicao.Context(), id)
+	if err != nil {
+		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
+		return
+	}
+	if membros == nil {
+		membros = []grupoService.MembroGrupo{}
+	}
+	respostas.EscreverJSON(resposta, http.StatusOK, membros)
 }

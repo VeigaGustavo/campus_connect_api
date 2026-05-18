@@ -4,16 +4,21 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
-	"campus_connect_api/internal/infra/database"
+	comum "campus_connect_api/internal/modulos/comum"
+	repositoryutil "campus_connect_api/internal/modulos/comum/repositoryutil"
 	grupoService "campus_connect_api/internal/modulos/grupo/service"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type grupoRepositoryPostgres struct {
-	store database.PersistenciaGrupo
+	pool *pgxpool.Pool
 
 	mutex              sync.RWMutex
 	chatGrupo          map[string][]grupoService.MensagemChatGrupo
@@ -25,7 +30,7 @@ type grupoRepositoryPostgres struct {
 
 func NovoGrupoRepository(pool *pgxpool.Pool) grupoService.GrupoRepository {
 	return &grupoRepositoryPostgres{
-		store:              database.NovoPostgres(pool),
+		pool:               pool,
 		chatGrupo:          map[string][]grupoService.MensagemChatGrupo{},
 		arquivosGrupo:      map[string][]grupoService.ArquivoGrupo{},
 		reunioesGrupo:      map[string][]grupoService.ReuniaoGrupo{},
@@ -41,39 +46,126 @@ func novoIdentificador(prefixo string) string {
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarGrupos(contexto context.Context) ([]grupoService.GrupoEstudo, error) {
-	return repositorio.store.ListarGrupos(contexto)
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label, criado_por::text,
+coalesce(nullif(trim(visibility),''),'public') FROM grupos_estudo ORDER BY criado_em DESC`
+	rows, err := repositorio.pool.Query(contexto, sql)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]grupoService.GrupoEstudo, 0)
+	for rows.Next() {
+		g, err := repositorio.scanLinhaGrupo(contexto, rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+func (repositorio *grupoRepositoryPostgres) scanLinhaGrupo(contexto context.Context, rows pgx.Rows) (grupoService.GrupoEstudo, error) {
+	var g grupoService.GrupoEstudo
+	var lvl string
+	if err := rows.Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario, &g.AutorID, &g.Visibilidade); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	var autor comum.PerfilPublicoAutor
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, g.AutorID, &autor); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	g.Autor = grupoService.AutorGrupoDe(autor)
+	g.Nivel = grupoService.NivelGrupoEstudo(lvl)
+	return g, nil
 }
 
 func (repositorio *grupoRepositoryPostgres) InserirGrupo(contexto context.Context, criadoPor string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.InserirGrupo(contexto, criadoPor, corpo)
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	visibilidade := strings.TrimSpace(corpo.Visibilidade)
+	if visibilidade != "private" {
+		visibilidade = "public"
+	}
+	const ins = `INSERT INTO grupos_estudo (titulo, field_of_study, description, level, member_count, schedule_label, criado_por, visibility)
+VALUES ($1,$2,$3,$4::varchar,1,$5,$6::uuid,$7) RETURNING id::text`
+	var id string
+	if err := tx.QueryRow(contexto, ins, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, corpo.RotuloHorario, criadoPor, visibilidade).Scan(&id); err != nil {
+		const insLegado = `INSERT INTO grupos_estudo (titulo, field_of_study, description, level, member_count, schedule_label, criado_por)
+VALUES ($1,$2,$3,$4::varchar,1,$5,$6::uuid) RETURNING id::text`
+		if errLegado := tx.QueryRow(contexto, insLegado, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, corpo.RotuloHorario, criadoPor).Scan(&id); errLegado != nil {
+			return grupoService.GrupoEstudo{}, err
+		}
+	}
+	if err := repositoryutil.InserirCartaoFeedTx(contexto, tx, comum.FeedKindGrupoEstudo, "dsc-"+id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel, id, corpo.EscopoPublicacao, corpo.IDGrupoPublicacao); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	_ = repositorio.InserirMembroGrupoTx(contexto, tx, id, criadoPor, "owner")
+	if err := tx.Commit(contexto); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	g, ok, err := repositorio.obterGrupo(contexto, id)
+	if err != nil || !ok {
+		return grupoService.GrupoEstudo{}, errors.New("falha ao recarregar grupo")
+	}
+	return g, nil
 }
 
-func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID, perfil string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
-	return repositorio.store.AtualizarGrupo(contexto, id, usuarioID, perfil, corpo)
+func (repositorio *grupoRepositoryPostgres) AtualizarGrupo(contexto context.Context, id, usuarioID string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	return repositorio.atualizarGrupoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao, corpo)
 }
 
-func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID, perfil string) error {
-	return repositorio.store.RemoverGrupo(contexto, id, usuarioID, perfil)
+func (repositorio *grupoRepositoryPostgres) AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	return repositorio.atualizarGrupoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin, corpo)
 }
 
-func (repositorio *grupoRepositoryPostgres) ListarMensagensGrupo(grupoID string) []grupoService.MensagemChatGrupo {
+func (repositorio *grupoRepositoryPostgres) RemoverGrupo(contexto context.Context, id, usuarioID string) error {
+	return repositorio.removerGrupoComPerfil(contexto, id, usuarioID, comum.PerfilPadrao)
+}
+
+func (repositorio *grupoRepositoryPostgres) RemoverGrupoComoAdmin(contexto context.Context, id string) error {
+	return repositorio.removerGrupoComPerfil(contexto, id, "", comum.PerfilSistemaAdmin)
+}
+
+func (repositorio *grupoRepositoryPostgres) ListarMensagensGrupo(contexto context.Context, grupoID string) ([]grupoService.MensagemChatGrupo, error) {
 	repositorio.mutex.RLock()
-	defer repositorio.mutex.RUnlock()
-	return append([]grupoService.MensagemChatGrupo(nil), repositorio.chatGrupo[grupoID]...)
+	out := append([]grupoService.MensagemChatGrupo(nil), repositorio.chatGrupo[grupoID]...)
+	repositorio.mutex.RUnlock()
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].CriadoEm < out[j].CriadoEm
+	})
+	for i := range out {
+		if strings.TrimSpace(out[i].NomeAutor) == "" {
+			out[i].NomeAutor = repositorio.nomeUsuario(contexto, out[i].AutorID)
+		}
+	}
+	if out == nil {
+		out = []grupoService.MensagemChatGrupo{}
+	}
+	return out, nil
 }
 
-func (repositorio *grupoRepositoryPostgres) AdicionarMensagemGrupo(grupoID, autorID, texto string) grupoService.MensagemChatGrupo {
+func (repositorio *grupoRepositoryPostgres) AdicionarMensagemGrupo(contexto context.Context, grupoID, autorID, texto string) (grupoService.MensagemChatGrupo, error) {
 	mensagem := grupoService.MensagemChatGrupo{
-		ID:       novoIdentificador("msg-"),
-		GrupoID:  grupoID,
-		AutorID:  autorID,
-		Texto:    texto,
-		CriadoEm: time.Now().UTC().Format(time.RFC3339),
+		ID:        novoIdentificador("msg-"),
+		GrupoID:   grupoID,
+		AutorID:   autorID,
+		NomeAutor: repositorio.nomeUsuario(contexto, autorID),
+		Texto:     texto,
+		CriadoEm:  time.Now().UTC().Format(time.RFC3339),
 	}
 	repositorio.mutex.Lock()
 	repositorio.chatGrupo[grupoID] = append(repositorio.chatGrupo[grupoID], mensagem)
 	repositorio.mutex.Unlock()
-	return mensagem
+	return mensagem, nil
+}
+
+func (repositorio *grupoRepositoryPostgres) nomeUsuario(contexto context.Context, usuarioID string) string {
+	var nome string
+	_ = repositorio.pool.QueryRow(contexto, `SELECT coalesce(nome,'') FROM usuarios WHERE id=$1::uuid`, usuarioID).Scan(&nome)
+	return nome
 }
 
 func (repositorio *grupoRepositoryPostgres) ListarArquivosGrupo(grupoID string) []grupoService.ArquivoGrupo {
@@ -145,3 +237,74 @@ func (repositorio *grupoRepositoryPostgres) AssociarLeituraGrupo(grupoID, leitur
 	repositorio.mutex.Unlock()
 	return associacao
 }
+
+func (repositorio *grupoRepositoryPostgres) obterGrupo(contexto context.Context, id string) (grupoService.GrupoEstudo, bool, error) {
+	const sql = `SELECT id::text, titulo, field_of_study, description, level::text, member_count, schedule_label, criado_por::text,
+coalesce(nullif(trim(visibility),''),'public') FROM grupos_estudo WHERE id=$1::uuid`
+	var g grupoService.GrupoEstudo
+	var lvl string
+	err := repositorio.pool.QueryRow(contexto, sql, id).Scan(&g.Identificador, &g.Titulo, &g.AreaEstudo, &g.Descricao, &lvl, &g.TotalMembros, &g.RotuloHorario, &g.AutorID, &g.Visibilidade)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return grupoService.GrupoEstudo{}, false, nil
+		}
+		return grupoService.GrupoEstudo{}, false, err
+	}
+	var autor comum.PerfilPublicoAutor
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, g.AutorID, &autor); err != nil {
+		return grupoService.GrupoEstudo{}, false, err
+	}
+	g.Autor = grupoService.AutorGrupoDe(autor)
+	g.Nivel = grupoService.NivelGrupoEstudo(lvl)
+	return g, true, nil
+}
+
+func (repositorio *grupoRepositoryPostgres) atualizarGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string, corpo grupoService.RequisicaoCriarGrupo) (grupoService.GrupoEstudo, error) {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	const upd = `UPDATE grupos_estudo SET titulo=$2, field_of_study=$3, description=$4, level=$5::varchar, schedule_label=$6, atualizado_em=now() WHERE id=$1::uuid`
+	ct, err := tx.Exec(contexto, upd, id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, corpo.Nivel, corpo.RotuloHorario)
+	if err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	if ct.RowsAffected() == 0 {
+		return grupoService.GrupoEstudo{}, comum.ErrNaoEncontrado
+	}
+	_, _ = tx.Exec(contexto, `UPDATE feed_cartoes SET titulo=$2, subtitle=$3, excerpt=$4, meta_primary=$5, meta_secondary=$6 WHERE kind='study_group' AND reference_id=$1`,
+		id, corpo.Titulo, corpo.AreaEstudo, corpo.Descricao, "Nível", corpo.Nivel)
+	if err := tx.Commit(contexto); err != nil {
+		return grupoService.GrupoEstudo{}, err
+	}
+	g, ok, err := repositorio.obterGrupo(contexto, id)
+	if err != nil || !ok {
+		return grupoService.GrupoEstudo{}, errors.New("falha ao recarregar grupo")
+	}
+	return g, nil
+}
+
+func (repositorio *grupoRepositoryPostgres) removerGrupoComPerfil(contexto context.Context, id, usuarioID, perfilCodigo string) error {
+	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM grupos_estudo WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
+		return err
+	}
+	tx, err := repositorio.pool.Begin(contexto)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(contexto) }()
+	_, _ = tx.Exec(contexto, `DELETE FROM feed_cartoes WHERE kind='study_group' AND reference_id=$1`, id)
+	ct, err := tx.Exec(contexto, `DELETE FROM grupos_estudo WHERE id=$1::uuid`, id)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return comum.ErrNaoEncontrado
+	}
+	return tx.Commit(contexto)
+}
+

@@ -21,19 +21,25 @@ func (servico *GrupoService) CriarGrupo(contexto context.Context, criadoPor stri
 }
 
 func (servico *GrupoService) AtualizarGrupo(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error) {
-	return servico.repositorio.AtualizarGrupo(contexto, id, usuarioID, perfil, corpo)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarGrupoComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarGrupo(contexto, id, usuarioID, corpo)
 }
 
 func (servico *GrupoService) RemoverGrupo(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverGrupo(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverGrupoComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverGrupo(contexto, id, usuarioID)
 }
 
-func (servico *GrupoService) ListarMensagensGrupo(grupoID string) []MensagemChatGrupo {
-	return servico.repositorio.ListarMensagensGrupo(grupoID)
+func (servico *GrupoService) ListarMensagensGrupo(contexto context.Context, grupoID string) ([]MensagemChatGrupo, error) {
+	return servico.repositorio.ListarMensagensGrupo(contexto, grupoID)
 }
 
-func (servico *GrupoService) AdicionarMensagemGrupo(grupoID, autorID, texto string) MensagemChatGrupo {
-	return servico.repositorio.AdicionarMensagemGrupo(grupoID, autorID, texto)
+func (servico *GrupoService) AdicionarMensagemGrupo(contexto context.Context, grupoID, autorID, texto string) (MensagemChatGrupo, error) {
+	return servico.repositorio.AdicionarMensagemGrupo(contexto, grupoID, autorID, texto)
 }
 
 func (servico *GrupoService) ListarArquivosGrupo(grupoID string) []ArquivoGrupo {

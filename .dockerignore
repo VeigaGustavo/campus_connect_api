@@ -1,0 +1,29 @@
+.git
+.gitignore
+.idea
+.cursor
+.vscode
+
+# Artefactos locais (não entram na imagem)
+tmp
+bin
+dist
+data
+**/*.log
+**/*.test
+coverage.out
+
+# Infra e docs (build Go não precisa)
+infra
+docs
+*.md
+!README.md
+
+# Ambiente e secrets
+.env
+.env.*
+!.env.*.example
+
+# Terraform / Swarm env local
+**/.terraform
+**/*.tfstate*

@@ -21,15 +21,27 @@ func (servico *EmpresaService) ObterOportunidadePorID(contexto context.Context, 
 }
 
 func (servico *EmpresaService) CriarOportunidade(contexto context.Context, criadoPor string, corpo RequisicaoCriarOportunidade) (Oportunidade, error) {
+	if err := validarRequisicaoOportunidade(corpo); err != nil {
+		return Oportunidade{}, err
+	}
 	return servico.repositorio.InserirOportunidade(contexto, criadoPor, corpo)
 }
 
 func (servico *EmpresaService) AtualizarOportunidade(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarOportunidade) (Oportunidade, error) {
-	return servico.repositorio.AtualizarOportunidade(contexto, id, usuarioID, perfil, corpo)
+	if err := validarRequisicaoOportunidade(corpo); err != nil {
+		return Oportunidade{}, err
+	}
+	if perfil == "sistema_admin" {
+		return servico.repositorio.AtualizarOportunidadeComoAdmin(contexto, id, corpo)
+	}
+	return servico.repositorio.AtualizarOportunidade(contexto, id, usuarioID, corpo)
 }
 
 func (servico *EmpresaService) RemoverOportunidade(contexto context.Context, id, usuarioID, perfil string) error {
-	return servico.repositorio.RemoverOportunidade(contexto, id, usuarioID, perfil)
+	if perfil == "sistema_admin" {
+		return servico.repositorio.RemoverOportunidadeComoAdmin(contexto, id)
+	}
+	return servico.repositorio.RemoverOportunidade(contexto, id, usuarioID)
 }
 
 func (servico *EmpresaService) ListarCandidatosOportunidade(oportunidadeID string) []CandidatoOportunidade {

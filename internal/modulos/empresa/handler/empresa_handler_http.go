@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
 	empresaService "campus_connect_api/internal/modulos/empresa/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -70,6 +69,10 @@ func (handler *EmpresaHTTPHandler) POSTCriarOportunidade(resposta http.ResponseW
 	}
 	oportunidadeCriada, err := handler.servicoEmpresa.CriarOportunidade(requisicao.Context(), sessao.UsuarioID, corpo)
 	if err != nil {
+		if errors.Is(err, empresaService.ErrOportunidadeInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_opportunity", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
@@ -86,7 +89,11 @@ func (handler *EmpresaHTTPHandler) PUTOportunidade(resposta http.ResponseWriter,
 	}
 	oportunidadeAtualizada, err := handler.servicoEmpresa.AtualizarOportunidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		if errors.Is(err, empresaService.ErrOportunidadeInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_opportunity", err.Error())
+			return
+		}
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, oportunidadeAtualizada)
@@ -96,19 +103,8 @@ func (handler *EmpresaHTTPHandler) DELETEOportunidade(resposta http.ResponseWrit
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoEmpresa.RemoverOportunidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
-}
-
-func (handler *EmpresaHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

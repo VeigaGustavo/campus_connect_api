@@ -2,10 +2,8 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
 	comunidadeService "campus_connect_api/internal/modulos/comunidade/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -65,7 +63,7 @@ func (handler *ComunidadeHTTPHandler) PUTComunidade(resposta http.ResponseWriter
 	}
 	comunidadeAtualizada, err := handler.servicoComunidade.AtualizarComunidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, comunidadeAtualizada)
@@ -75,19 +73,8 @@ func (handler *ComunidadeHTTPHandler) DELETEComunidade(resposta http.ResponseWri
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoComunidade.RemoverComunidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
-}
-
-func (handler *ComunidadeHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
 }

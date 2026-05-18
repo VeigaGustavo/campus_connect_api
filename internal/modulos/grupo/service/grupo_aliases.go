@@ -11,6 +11,10 @@ const (
 )
 
 type GrupoEstudo = model.GrupoEstudo
+type AutorGrupo = model.AutorGrupo
+
+var AutorGrupoDe = model.AutorGrupoDe
+type MembroGrupo = model.MembroGrupo
 type RequisicaoCriarGrupo = model.RequisicaoCriarGrupo
 type MensagemChatGrupo = model.MensagemChatGrupo
 type RequisicaoMensagemChatGrupo = model.RequisicaoMensagemChatGrupo

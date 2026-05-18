@@ -2,10 +2,8 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
-	"campus_connect_api/internal/infra/database"
 	projetoService "campus_connect_api/internal/modulos/projeto/service"
 	auth "campus_connect_api/internal/modulos/seguranca/auth"
 	"campus_connect_api/internal/respostas"
@@ -18,13 +16,6 @@ type ProjetoHTTPHandler struct {
 
 func NovoProjetoHTTPHandler(servicoProjeto *projetoService.ProjetoService) *ProjetoHTTPHandler {
 	return &ProjetoHTTPHandler{servicoProjeto: servicoProjeto}
-}
-
-func (handler *ProjetoHTTPHandler) RegistrarRotasHTTP(mux *http.ServeMux) {
-	mux.HandleFunc("GET /projects", handler.GETProjetos)
-	mux.HandleFunc("POST /projects", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.POSTCriarProjeto))
-	mux.HandleFunc("PUT /projects/{id}", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.PUTProjeto))
-	mux.HandleFunc("DELETE /projects/{id}", auth.ExigirPerfis("padrao", "comunidade", "sistema_admin")(handler.DELETEProjeto))
 }
 
 func (handler *ProjetoHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
@@ -72,7 +63,7 @@ func (handler *ProjetoHTTPHandler) PUTProjeto(resposta http.ResponseWriter, requ
 	}
 	pr, err := handler.servicoProjeto.AtualizarProjeto(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, pr)
@@ -82,19 +73,9 @@ func (handler *ProjetoHTTPHandler) DELETEProjeto(resposta http.ResponseWriter, r
 	sessao, _ := auth.SessaoDaRequisicao(requisicao)
 	id := requisicao.PathValue("id")
 	if err := handler.servicoProjeto.RemoverProjeto(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil); err != nil {
-		handler.escreverErroPersistencia(resposta, err)
+		respostas.EscreverErroPersistencia(resposta, err)
 		return
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-func (handler *ProjetoHTTPHandler) escreverErroPersistencia(resposta http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, database.ErrNaoEncontrado):
-		respostas.EscreverErro(resposta, http.StatusNotFound, "not_found", "resource not found")
-	case errors.Is(err, database.ErrProibido):
-		respostas.EscreverErro(resposta, http.StatusForbidden, "forbidden", "not allowed")
-	default:
-		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
-	}
-}
