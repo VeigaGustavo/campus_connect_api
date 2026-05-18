@@ -34,12 +34,12 @@ func (servico *GrupoService) RemoverGrupo(contexto context.Context, id, usuarioI
 	return servico.repositorio.RemoverGrupo(contexto, id, usuarioID)
 }
 
-func (servico *GrupoService) ListarMensagensGrupo(grupoID string) []MensagemChatGrupo {
-	return servico.repositorio.ListarMensagensGrupo(grupoID)
+func (servico *GrupoService) ListarMensagensGrupo(contexto context.Context, grupoID string) ([]MensagemChatGrupo, error) {
+	return servico.repositorio.ListarMensagensGrupo(contexto, grupoID)
 }
 
-func (servico *GrupoService) AdicionarMensagemGrupo(grupoID, autorID, texto string) MensagemChatGrupo {
-	return servico.repositorio.AdicionarMensagemGrupo(grupoID, autorID, texto)
+func (servico *GrupoService) AdicionarMensagemGrupo(contexto context.Context, grupoID, autorID, texto string) (MensagemChatGrupo, error) {
+	return servico.repositorio.AdicionarMensagemGrupo(contexto, grupoID, autorID, texto)
 }
 
 func (servico *GrupoService) ListarArquivosGrupo(grupoID string) []ArquivoGrupo {

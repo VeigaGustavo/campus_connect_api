@@ -11,8 +11,8 @@ type GrupoRepository interface {
 	AtualizarGrupoComoAdmin(contexto context.Context, id string, corpo RequisicaoCriarGrupo) (GrupoEstudo, error)
 	RemoverGrupo(contexto context.Context, id, usuarioID string) error
 	RemoverGrupoComoAdmin(contexto context.Context, id string) error
-	ListarMensagensGrupo(grupoID string) []MensagemChatGrupo
-	AdicionarMensagemGrupo(grupoID, autorID, texto string) MensagemChatGrupo
+	ListarMensagensGrupo(contexto context.Context, grupoID string) ([]MensagemChatGrupo, error)
+	AdicionarMensagemGrupo(contexto context.Context, grupoID, autorID, texto string) (MensagemChatGrupo, error)
 	ListarArquivosGrupo(grupoID string) []ArquivoGrupo
 	AdicionarArquivoGrupo(grupoID, autorID, nome, url string) ArquivoGrupo
 	ListarReunioesGrupo(grupoID string) []ReuniaoGrupo
@@ -21,4 +21,8 @@ type GrupoRepository interface {
 	AssociarEventoGrupo(grupoID, eventoID string) AssociacaoGrupoEvento
 	ListarLeiturasAssociadasGrupo(grupoID string) []AssociacaoGrupoLeitura
 	AssociarLeituraGrupo(grupoID, leituraID string) AssociacaoGrupoLeitura
+	ObterVisibilidadeGrupo(contexto context.Context, grupoID string) (string, bool, error)
+	InserirMembroGrupo(contexto context.Context, grupoID, usuarioID, papel string) error
+	CriarPedidoEntradaGrupo(contexto context.Context, grupoID, usuarioID string) error
+	ListarMembrosGrupo(contexto context.Context, grupoID string) ([]MembroGrupo, error)
 }
