@@ -88,7 +88,7 @@ Se nao existir linha em `cadastros_usuario`, a API devolve um perfil institucion
 
 ---
 
-## API (v2 implementada)
+## API
 
 ### 1) Obter perfil autenticado
 

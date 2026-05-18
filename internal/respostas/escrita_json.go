@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"campus_connect_api/internal/modelos"
-	"campus_connect_api/internal/versao"
 )
 
 func EscreverJSON(resposta http.ResponseWriter, status int, corpo any) {
@@ -15,5 +14,5 @@ func EscreverJSON(resposta http.ResponseWriter, status int, corpo any) {
 }
 
 func EscreverErro(resposta http.ResponseWriter, status int, codigo, mensagem string) {
-	EscreverJSON(resposta, status, modelos.ErroAPI{Codigo: codigo, Mensagem: mensagem, Revisao: versao.Revisao})
+	EscreverJSON(resposta, status, modelos.ErroAPI{Codigo: codigo, Mensagem: mensagem})
 }

@@ -36,7 +36,6 @@ import (
 	usuarioRepository "campus_connect_api/internal/modulos/usuario/repository"
 	usuarioService "campus_connect_api/internal/modulos/usuario/service"
 	"campus_connect_api/internal/respostas"
-	"campus_connect_api/internal/versao"
 	"os"
 	"strings"
 
@@ -66,15 +65,10 @@ func NewGinEngine(pool *pgxpool.Pool) *gin.Engine {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 	engine.Use(respostas.GinRequestID())
-	engine.Use(respostas.GinAPIRevision())
 	engine.Use(respostas.GinCORS())
 	engine.Use(respostas.GinAceitarJSON())
 	engine.GET("/health", func(contexto *gin.Context) {
-		contexto.JSON(200, map[string]any{
-			"status":       "ok",
-			"api_revision": versao.Revisao,
-			"features":     versao.Features,
-		})
+		contexto.JSON(200, map[string]string{"status": "ok"})
 	})
 	engine.Static("/uploads", media.ResolverDirUploads())
 

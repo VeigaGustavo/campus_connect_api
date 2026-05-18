@@ -27,7 +27,7 @@ Código: `internal/modulos/empresa/handler/empresa_handler_http.go`, `repository
 |------|--------|
 | Base | `http://localhost:8080` / `API_BASE_URL` |
 | JSON | `snake_case` |
-| Erros | `{ "code", "message", "api_revision" }` — ver [CONTRATO_API.md](./CONTRATO_API.md) |
+| Erros | `{ "code", "message" }` — ver [CONTRATO_API.md](./CONTRATO_API.md) |
 | Listas | **`GET /opportunities` devolve array na raiz** `[]` (não envelope `items`) |
 
 ### Headers (pedidos JSON)

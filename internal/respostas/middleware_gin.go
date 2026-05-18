@@ -9,17 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"campus_connect_api/internal/versao"
-
 	"github.com/gin-gonic/gin"
 )
-
-func GinAPIRevision() gin.HandlerFunc {
-	return func(contexto *gin.Context) {
-		contexto.Writer.Header().Set("X-Campus-API-Revision", versao.Revisao)
-		contexto.Next()
-	}
-}
 
 func GinRequestID() gin.HandlerFunc {
 	return func(contexto *gin.Context) {
@@ -54,7 +45,7 @@ func GinCORS() gin.HandlerFunc {
 		contexto.Writer.Header().Set("Access-Control-Allow-Origin", origem)
 		contexto.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		contexto.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization")
-		contexto.Writer.Header().Set("Access-Control-Expose-Headers", "X-Request-Id, X-Campus-API-Revision")
+		contexto.Writer.Header().Set("Access-Control-Expose-Headers", "X-Request-Id")
 
 		if contexto.Request.Method == http.MethodOptions {
 			contexto.Status(http.StatusNoContent)
