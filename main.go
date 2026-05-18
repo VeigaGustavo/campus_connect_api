@@ -28,7 +28,7 @@ func main() {
 	contexto := context.Background()
 	urlBancoDados := resolverDatabaseURL()
 	if urlBancoDados == "" {
-		log.Fatal("DATABASE_URL ou DATABASE_URL_FILE é obrigatório; configure o PostgreSQL e rode as migrações em db/init")
+		log.Fatal("DATABASE_URL ou DATABASE_URL_FILE é obrigatório; configure o PostgreSQL e rode: go run ./cmd/migrate")
 	}
 	pool, err := banco.NovoPool(contexto, urlBancoDados)
 	if err != nil {

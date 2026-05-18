@@ -23,7 +23,3 @@ docs
 .env
 .env.*
 !.env.*.example
-
-# Terraform / Swarm env local
-**/.terraform
-**/*.tfstate*
