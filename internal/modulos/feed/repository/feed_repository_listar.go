@@ -36,7 +36,12 @@ INNER JOIN feed_cartoes c ON c.kind = 'post' AND c.reference_id = p.id::text`
 		where = append(where, fmt.Sprintf("p.author_id = $%d::uuid", len(args)))
 	}
 
-	if len(filtro.GruposDoUsuario) == 0 {
+	if len(filtro.GruposDoUsuario) > 0 && filtro.ApenasPostsDoGrupo {
+		args = append(args, comum.VisibilidadeGrupo, filtro.GruposDoUsuario)
+		scopePos := len(args) - 1
+		gruposPos := len(args)
+		where = append(where, fmt.Sprintf("c.visibility_scope = $%d AND c.visibility_group_id = ANY($%d::text[])", scopePos, gruposPos))
+	} else if len(filtro.GruposDoUsuario) == 0 {
 		args = append(args, comum.VisibilidadeTodos)
 		where = append(where, fmt.Sprintf("c.visibility_scope = $%d", len(args)))
 	} else {
@@ -45,6 +50,10 @@ INNER JOIN feed_cartoes c ON c.kind = 'post' AND c.reference_id = p.id::text`
 		grupoPos := len(args) - 1
 		gruposPos := len(args)
 		where = append(where, fmt.Sprintf("(c.visibility_scope = $%d OR (c.visibility_scope = $%d AND c.visibility_group_id = ANY($%d::text[])))", todosPos, grupoPos, gruposPos))
+	}
+	if k := strings.TrimSpace(filtro.TipoConteudo); k != "" {
+		args = append(args, k)
+		where = append(where, fmt.Sprintf("coalesce(p.content_kind,'') = $%d", len(args)))
 	}
 
 	whereSQL := strings.Join(where, " AND ")
@@ -93,6 +102,9 @@ coalesce(c.visibility_scope,'all'), coalesce(c.visibility_group_id::text,'') ` +
 		return feedService.RespostaListaPosts{}, err
 	}
 
+	if posts == nil {
+		posts = []feedService.PostFeedDetalhe{}
+	}
 	return feedService.RespostaListaPosts{
 		Itens:   posts,
 		Total:   total,
@@ -150,10 +162,13 @@ func (repositorio *feedRepositoryPostgres) enriquecerPostsLista(contexto context
 	}
 
 	for i := range posts {
-		posts[i].Autor = cacheAutor[posts[i].AutorID]
+		posts[i].Autor = feedService.AutorPostDe(cacheAutor[posts[i].AutorID])
 		posts[i].GosteiTotal = likes[posts[i].Identificador]
 		posts[i].DesgosteiTotal = dislikes[posts[i].Identificador]
 		posts[i].MeuVoto = minhas[posts[i].Identificador]
+		if posts[i].MeuVoto == "" {
+			posts[i].MeuVoto = "none"
+		}
 		posts[i].Salvo = salvos[posts[i].Identificador]
 		if incluirComentarios {
 			posts[i].Comentarios = comentarios[posts[i].Identificador]

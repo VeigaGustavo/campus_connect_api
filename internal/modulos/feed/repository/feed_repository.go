@@ -150,9 +150,11 @@ func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, p
 		post.Anexos = []feedService.AnexoPost{}
 	}
 	post.CriadoEm = criadoEm.UTC().Format(time.RFC3339)
-	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, post.AutorID, &post.Autor); err != nil {
+	var autor comum.PerfilPublicoAutor
+	if err := repositoryutil.CarregarPerfilPublicoAutor(contexto, repositorio.pool, post.AutorID, &autor); err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
 	}
+	post.Autor = feedService.AutorPostDe(autor)
 	post.Comentarios, err = repositorio.ListarComentariosPost(contexto, postID)
 	if err != nil {
 		return feedService.PostFeedDetalhe{}, false, err
@@ -173,6 +175,9 @@ func (repositorio *feedRepositoryPostgres) ObterPost(contexto context.Context, p
 		if err := repositorio.pool.QueryRow(contexto, `SELECT count(1) FROM feed_posts_salvos WHERE post_id=$1::uuid AND user_id=$2::uuid`, postID, usuarioID).Scan(&total); err == nil {
 			post.Salvo = total > 0
 		}
+	}
+	if post.MeuVoto == "" {
+		post.MeuVoto = "none"
 	}
 	return post, true, nil
 }

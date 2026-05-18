@@ -56,10 +56,27 @@ type RequisicaoSalvarPost struct {
 	Salvo bool `json:"saved"`
 }
 
+// AutorPost expõe avatar_url no feed (contrato Flutter).
+type AutorPost struct {
+	Identificador string `json:"id"`
+	Nome          string `json:"name"`
+	URLAvatar     string `json:"avatar_url"`
+	Perfil        string `json:"role"`
+}
+
+func AutorPostDe(autor comum.PerfilPublicoAutor) AutorPost {
+	return AutorPost{
+		Identificador: autor.Identificador,
+		Nome:          autor.Nome,
+		URLAvatar:     autor.URLAvatar,
+		Perfil:        autor.Perfil,
+	}
+}
+
 type PostFeedDetalhe struct {
-	Identificador       string                   `json:"id"`
-	AutorID             string                   `json:"author_id"`
-	Autor               comum.PerfilPublicoAutor `json:"author"`
+	Identificador       string    `json:"id"`
+	AutorID             string    `json:"author_id"`
+	Autor               AutorPost `json:"author"`
 	Texto               string                   `json:"text"`
 	Anexos              []AnexoPost              `json:"attachments"`
 	TipoConteudo        string                   `json:"content_kind,omitempty"`
@@ -68,17 +85,19 @@ type PostFeedDetalhe struct {
 	GosteiTotal         int                      `json:"likes_count"`
 	DesgosteiTotal      int                      `json:"dislikes_count"`
 	Comentarios         []ComentarioPost         `json:"comments"`
-	MeuVoto             string                   `json:"my_reaction,omitempty"`
+	MeuVoto             string    `json:"my_reaction"`
 	Salvo               bool                     `json:"saved"`
 	LinkCompartilhar    string                   `json:"share_link"`
 	CriadoEm            string                   `json:"created_at"`
 }
 
 type FiltroListarPosts struct {
-	Pagina            int
-	Limite            int
-	AutorID           string
-	GruposDoUsuario   []string
+	Pagina             int
+	Limite             int
+	AutorID            string
+	GruposDoUsuario    []string
+	ApenasPostsDoGrupo bool
+	TipoConteudo       string
 	IncluirComentarios bool
 }
 

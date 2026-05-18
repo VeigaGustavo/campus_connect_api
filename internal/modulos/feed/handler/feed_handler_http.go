@@ -91,6 +91,8 @@ func (handler *FeedHTTPHandler) GETListarPosts(resposta http.ResponseWriter, req
 		Limite:             limite,
 		AutorID:            strings.TrimSpace(requisicao.URL.Query().Get("author_id")),
 		GruposDoUsuario:    grupos,
+		ApenasPostsDoGrupo: len(grupos) > 0,
+		TipoConteudo:       strings.TrimSpace(requisicao.URL.Query().Get("content_kind")),
 		IncluirComentarios: incluirComentarios,
 	})
 	if err != nil {
