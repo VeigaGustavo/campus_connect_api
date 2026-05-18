@@ -43,9 +43,58 @@ Variáveis úteis no backend:
 
 ### POST `/api/auth/register`
 
-Ver `profile_type`: `estudante` | `comunidade` | `empresa` | `universidade`.  
-Campos extras conforme tipo (comunidade, empresa, universidade).  
-`birth_date` (`YYYY-MM-DD`) aceito; idade calculada no servidor.
+Auth: nenhuma. **Content-Type:** `application/json`. **201 Created.**
+
+**Convenção recomendada:** chaves em `snake_case`. A API também aceita **camelCase** e chaves **case-insensitive** equivalentes (ex.: `companyName` → mesmo que `company_name`; ver nota abaixo).
+
+**Campos base (quase todos os tipos):**
+
+| Campo | Obrigatório | Notas |
+|-------|-------------|--------|
+| `profile_type` | sim | `estudante` \| `comunidade` \| `empresa` \| `universidade` (trim + minúsculas no servidor) |
+| `full_name` | sim | |
+| `birth_date` ou `age` | sim* | `birth_date`: `YYYY-MM-DD` ou ISO (`2006-05-15T00:00:00Z`). Idade calculada se `age` omitido |
+| `cpf` | sim | Preferir **string** JSON (`"069..."`) para não perder zeros à esquerda; número também aceite |
+| `city`, `state` | sim | |
+| `email`, `password` | sim | |
+| `institution` | condicional | **Obrigatório** para `estudante` e `comunidade`. **Opcional** para `empresa` e `universidade` (pode omitir ou `""`) |
+
+**Por `profile_type`:**
+
+| Tipo | Campos extra obrigatórios |
+|------|---------------------------|
+| `comunidade` | `community_type`, `community_name`, `group_description`, `group_visibility` (`public` \| `private`); `group_title` opcional |
+| `empresa` | `company_name` |
+| `universidade` | `institution_name` |
+| `estudante` | — (só `institution` comum) |
+
+**Resposta 201 (comunidade):**
+
+```json
+{
+  "id": "uuid",
+  "name": "Maria Silva",
+  "email": "maria@email.com",
+  "role": "comunidade",
+  "profile_type": "comunidade",
+  "community_id": "uuid-comunidade",
+  "group_id": "uuid-grupo"
+}
+```
+
+**Resposta 201 (outros tipos):** `id`, `name`, `email`, `role`, `profile_type` (sem `community_id` / `group_id`).
+
+**Erros 400:**
+
+| `code` | `message` (exemplos) |
+|--------|----------------------|
+| `invalid_json` | corpo não é JSON válido |
+| `invalid_registration` | texto explicativo (ex.: `cadastro invalido: company_name obrigatorio para empresa`) — usar para debug/UI |
+| `registration_failed` | BD (ex.: e-mail duplicado) |
+
+**Compatibilidade de chaves:** o servidor normaliza nomes de campos (remove `_`/`-`, minúsculas), por isso `profileType` e `profile_type` equivalem a `profiletype`. **Recomendado** manter `snake_case` no contrato Flutter para consistência com o resto da API.
+
+`birth_date` com ISO completo ou só data; `profile_type` com maiúsculas é normalizado no servidor.
 
 ### GET `/api/auth/me` (autenticado)
 
@@ -118,12 +167,18 @@ Body: `about_me`, `job_title`, `course`, `semester`, `institution_name`, `map_ur
 
 ## 4. Oportunidades
 
-- `GET /api/opportunities` — array de oportunidades
-- `GET /api/opportunities/{id}`
-- `GET /api/opportunities/{id}/applicants` (empresa/admin)
-- CRUD autenticado: POST/PUT/DELETE
+Contrato completo (campos, erros, diferenças Flutter): **[contrato_oportunidades.md](./contrato_oportunidades.md)**.
 
-**Pendente no backend:** `POST /api/opportunities/{id}/apply` (candidatura).
+| Método | Rota | Auth |
+|--------|------|------|
+| GET | `/api/opportunities` | Não — array na raiz |
+| GET | `/api/opportunities/{id}` | Não |
+| POST | `/api/opportunities` | `empresa` \| `sistema_admin` |
+| PUT | `/api/opportunities/{id}` | Dono ou admin |
+| DELETE | `/api/opportunities/{id}` | Dono ou admin |
+| GET | `/api/opportunities/{id}/applicants` | empresa/admin (mock hoje) |
+
+**Pendente:** `POST /api/opportunities/{id}/apply`, `GET /api/opportunities/types`, candidatos reais em BD.
 
 ---
 
@@ -136,10 +191,28 @@ Body: `about_me`, `job_title`, `course`, `semester`, `institution_name`, `map_ur
 
 ## 6. Grupos
 
-- `GET /api/groups` — array
+### GET `/api/groups` (autenticado)
+
+Array de grupos; inclui `visibility` (`public` | `private`):
+
+```json
+[{
+  "id": "uuid",
+  "author_id": "uuid",
+  "author": { "id", "name", "avatar_url", "role" },
+  "title": "Grupo Geral da Atlética",
+  "field_of_study": "Atlética",
+  "description": "...",
+  "level": "beginner",
+  "member_count": 1,
+  "schedule_label": "",
+  "visibility": "public"
+}]
+```
+
 - CRUD + chat, ficheiros, reuniões, associações
 
-**Pendente no backend:** `POST /api/groups/{id}/join`
+**Pendente:** `POST /api/groups/{id}/join`, pedidos de entrada em grupos privados, admins.
 
 ---
 
@@ -147,9 +220,17 @@ Body: `about_me`, `job_title`, `course`, `semester`, `institution_name`, `map_ur
 
 ### GET `/api/reading/weekly`
 
+Query opcional: `kind` = `campus_news` | `magazine` | `article` (aliases `revista` → `magazine`, `artigo` → `article` na validação do POST).
+
 ```json
-{ "items": [{ "id", "kind", "title", "source", "excerpt", "image_url", "meta_label" }] }
+{ "items": [{ "id", "kind", "title", "source", "excerpt", "image_url", "meta_label", "author_id", "author" }] }
 ```
+
+**Revista:** no POST use `"kind": "magazine"` (o back também aceita `"revista"` e normaliza).
+
+### POST `/api/reading/weekly`
+
+Auth: `universidade` | `comunidade` | `empresa` | `sistema_admin`. Corpo: `kind`, `title`, `source`, `excerpt` obrigatórios; `image_url`, `meta_label` opcionais.
 
 ---
 
