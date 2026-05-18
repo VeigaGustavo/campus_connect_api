@@ -45,6 +45,7 @@ func GinCORS() gin.HandlerFunc {
 		contexto.Writer.Header().Set("Access-Control-Allow-Origin", origem)
 		contexto.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		contexto.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization")
+		contexto.Writer.Header().Set("Access-Control-Expose-Headers", "X-Request-Id, X-Campus-API-Revision")
 
 		if contexto.Request.Method == http.MethodOptions {
 			contexto.Status(http.StatusNoContent)

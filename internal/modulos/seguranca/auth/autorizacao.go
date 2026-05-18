@@ -19,14 +19,24 @@ type SessaoUsuario struct {
 	Perfil    string
 }
 
+func extrairToken(requisicao *http.Request) string {
+	cabecalhoAutorizacao := requisicao.Header.Get("Authorization")
+	if strings.HasPrefix(cabecalhoAutorizacao, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(cabecalhoAutorizacao, "Bearer "))
+	}
+	if t := strings.TrimSpace(requisicao.URL.Query().Get("access_token")); t != "" {
+		return t
+	}
+	return strings.TrimSpace(requisicao.URL.Query().Get("token"))
+}
+
 func ObrigarAutenticacao(proximo http.HandlerFunc) http.HandlerFunc {
 	return func(resposta http.ResponseWriter, requisicao *http.Request) {
-		cabecalhoAutorizacao := requisicao.Header.Get("Authorization")
-		if !strings.HasPrefix(cabecalhoAutorizacao, "Bearer ") {
+		token := extrairToken(requisicao)
+		if token == "" {
 			respostas.EscreverErro(resposta, http.StatusUnauthorized, "unauthorized", "missing bearer token")
 			return
 		}
-		token := strings.TrimSpace(strings.TrimPrefix(cabecalhoAutorizacao, "Bearer "))
 		payload, err := segurancaService.ValidarToken(token)
 		if err != nil {
 			respostas.EscreverErro(resposta, http.StatusUnauthorized, "unauthorized", "invalid token")

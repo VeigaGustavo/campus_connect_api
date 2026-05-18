@@ -16,6 +16,7 @@ import (
 
 	"campus_connect_api/internal/app"
 	"campus_connect_api/internal/banco"
+	usuarioRepository "campus_connect_api/internal/modulos/usuario/repository"
 
 	"github.com/joho/godotenv"
 )
@@ -36,6 +37,11 @@ func main() {
 	defer pool.Close()
 	if err := banco.AplicarMigracoesEssenciais(contexto, pool); err != nil {
 		log.Fatalf("migracoes: %v", err)
+	}
+	if n, err := usuarioRepository.NovoUsuarioRepository(pool).RepararComunidadesSemGrupo(contexto); err != nil {
+		log.Printf("aviso: reparar comunidades sem grupo: %v", err)
+	} else if n > 0 {
+		log.Printf("reparadas %d conta(s) comunidade sem grupo (atlética/CA)", n)
 	}
 	log.Println("persistência: PostgreSQL (DATABASE_URL)")
 

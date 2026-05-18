@@ -4,6 +4,7 @@ package modelos
 type ErroAPI struct {
 	Codigo   string `json:"code"`
 	Mensagem string `json:"message"`
+	Revisao  string `json:"api_revision"`
 }
 
 type RequisicaoLogin struct {
