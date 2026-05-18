@@ -33,7 +33,7 @@ func (handler *UsuarioHTTPHandler) POSTCadastroUsuarioPublico(resposta http.Resp
 	out, err := handler.servicoUsuario.RegistrarNovoUsuario(requisicao.Context(), corpo)
 	if err != nil {
 		if errors.Is(err, usuarioService.ErrCadastroInvalido) {
-			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_registration", "missing or invalid fields")
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_registration", err.Error())
 			return
 		}
 		respostas.EscreverErro(resposta, http.StatusBadRequest, "registration_failed", err.Error())
