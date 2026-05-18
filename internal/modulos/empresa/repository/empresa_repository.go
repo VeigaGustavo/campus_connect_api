@@ -66,7 +66,7 @@ FROM oportunidades WHERE id = $1::uuid`
 }
 
 func (repositorio *empresaRepositoryPostgres) InserirOportunidade(contexto context.Context, criadoPor string, corpo empresaService.RequisicaoCriarOportunidade) (empresaService.Oportunidade, error) {
-	deadline, err := time.Parse(time.RFC3339, corpo.PrazoCandidatura)
+	deadline, err := empresaService.ParsePrazoCandidatura(corpo.PrazoCandidatura)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
 	}
@@ -145,7 +145,7 @@ func (repositorio *empresaRepositoryPostgres) atualizarOportunidadeComPerfil(con
 	if err := repositoryutil.GarantirDonoOuAdmin(contexto, repositorio.pool, `SELECT criado_por::text FROM oportunidades WHERE id=$1::uuid`, id, usuarioID, perfilCodigo); err != nil {
 		return empresaService.Oportunidade{}, err
 	}
-	deadline, err := time.Parse(time.RFC3339, corpo.PrazoCandidatura)
+	deadline, err := empresaService.ParsePrazoCandidatura(corpo.PrazoCandidatura)
 	if err != nil {
 		return empresaService.Oportunidade{}, err
 	}

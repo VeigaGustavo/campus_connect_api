@@ -28,10 +28,17 @@ func (handler *LeituraHTTPHandler) RegistrarRotasGIN(grupo *gin.RouterGroup) {
 }
 
 func (handler *LeituraHTTPHandler) GETLeituraSemanal(resposta http.ResponseWriter, requisicao *http.Request) {
-	out, err := handler.servicoLeitura.ListarLeituraSemanal(requisicao.Context())
+	out, err := handler.servicoLeitura.ListarLeituraSemanal(requisicao.Context(), requisicao.URL.Query().Get("kind"))
 	if err != nil {
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
+	}
+	if out == nil {
+		out = []leituraService.ItemLeituraSemanal{}
 	}
 	respostas.EscreverJSON(resposta, http.StatusOK, leituraService.RespostaListaLeituraSemanal{Itens: out})
 }
@@ -49,6 +56,10 @@ func (handler *LeituraHTTPHandler) POSTCriarLeituraSemanal(resposta http.Respons
 	}
 	it, err := handler.servicoLeitura.CriarLeituraSemanal(requisicao.Context(), sessao.UsuarioID, corpo)
 	if err != nil {
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
@@ -65,6 +76,10 @@ func (handler *LeituraHTTPHandler) PUTLeituraSemanal(resposta http.ResponseWrite
 	}
 	it, err := handler.servicoLeitura.AtualizarLeituraSemanal(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
+		if errors.Is(err, leituraService.ErrLeituraInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_reading", err.Error())
+			return
+		}
 		handler.escreverErroPersistencia(resposta, err)
 		return
 	}

@@ -70,6 +70,10 @@ func (handler *EmpresaHTTPHandler) POSTCriarOportunidade(resposta http.ResponseW
 	}
 	oportunidadeCriada, err := handler.servicoEmpresa.CriarOportunidade(requisicao.Context(), sessao.UsuarioID, corpo)
 	if err != nil {
+		if errors.Is(err, empresaService.ErrOportunidadeInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_opportunity", err.Error())
+			return
+		}
 		respostas.EscreverErro(resposta, http.StatusInternalServerError, "server_error", err.Error())
 		return
 	}
@@ -86,6 +90,10 @@ func (handler *EmpresaHTTPHandler) PUTOportunidade(resposta http.ResponseWriter,
 	}
 	oportunidadeAtualizada, err := handler.servicoEmpresa.AtualizarOportunidade(requisicao.Context(), id, sessao.UsuarioID, sessao.Perfil, corpo)
 	if err != nil {
+		if errors.Is(err, empresaService.ErrOportunidadeInvalida) {
+			respostas.EscreverErro(resposta, http.StatusBadRequest, "invalid_opportunity", err.Error())
+			return
+		}
 		handler.escreverErroPersistencia(resposta, err)
 		return
 	}

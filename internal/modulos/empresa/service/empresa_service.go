@@ -21,10 +21,16 @@ func (servico *EmpresaService) ObterOportunidadePorID(contexto context.Context, 
 }
 
 func (servico *EmpresaService) CriarOportunidade(contexto context.Context, criadoPor string, corpo RequisicaoCriarOportunidade) (Oportunidade, error) {
+	if err := validarRequisicaoOportunidade(corpo); err != nil {
+		return Oportunidade{}, err
+	}
 	return servico.repositorio.InserirOportunidade(contexto, criadoPor, corpo)
 }
 
 func (servico *EmpresaService) AtualizarOportunidade(contexto context.Context, id, usuarioID, perfil string, corpo RequisicaoCriarOportunidade) (Oportunidade, error) {
+	if err := validarRequisicaoOportunidade(corpo); err != nil {
+		return Oportunidade{}, err
+	}
 	if perfil == "sistema_admin" {
 		return servico.repositorio.AtualizarOportunidadeComoAdmin(contexto, id, corpo)
 	}
