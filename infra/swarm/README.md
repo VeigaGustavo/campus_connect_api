@@ -106,7 +106,25 @@ set -a && . ./.env.api && set +a
 docker stack deploy -c api-stack.yml campus-api
 ```
 
-## 6) Verificacao
+## 6) API em 0/1 / logs vazios
+
+```bash
+docker logs c6ff14ec0f07 2>&1
+```
+
+(use o ID do `docker ps -a --filter name=campus-api_api`)
+
+Teste manual (substitua a senha real; caracteres `@#?` na senha devem ser **URL-encoded** na `database_url`):
+
+```bash
+docker run --rm --network campus_overlay_shared \
+  -e DATABASE_URL="postgres://campus_connect:SENHA@db:5432/campus_connect?sslmode=disable" \
+  campus_connect_api:latest
+```
+
+Confirme que o secret `database_url` usa host **`db`** (não `localhost`).
+
+## 7) Verificacao
 
 ```bash
 docker stack services campus-db
