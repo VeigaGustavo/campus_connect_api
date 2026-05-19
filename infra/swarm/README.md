@@ -57,6 +57,12 @@ cp .env.db.example .env.db
 cp .env.api.example .env.api
 ```
 
+O `.env.api` e opcional (o YAML tem defaults). Sem ele:
+
+```bash
+docker stack deploy -c api-stack.yml campus-api
+```
+
 ## 5) Deploy das stacks
 
 Primeiro banco (cria a rede overlay compartilhada `campus_overlay_shared`):
