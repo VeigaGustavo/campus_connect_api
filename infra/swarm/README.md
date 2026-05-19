@@ -7,7 +7,7 @@ Estrutura para deploy em duas stacks independentes:
 - `campus-db` com PostgreSQL (`db-stack.yml`)
 - `campus-api` com a API (`api-stack.yml`)
 
-As credenciais ficam em `docker secrets`.
+Credenciais sensíveis ficam em **Docker secrets** (não no `.env`). O `.env` serve só para tuning (RAM, portas, imagem).
 
 ## 1) Inicializar swarm (se necessario)
 
@@ -23,6 +23,21 @@ Na raiz do projeto, com BuildKit (cache de módulos Go + binário `-s -w`):
 export DOCKER_BUILDKIT=1
 docker build -t campus_connect_api:latest .
 ```
+
+O `Dockerfile` compila com `-p 1` e `GOMAXPROCS=1` para reduzir pico de RAM.
+
+**Se o build morrer com `signal: killed` (OOM)** — comum em instâncias ~1 GB:
+
+1. Adicione swap no host (exemplo Linux):
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+2. Ou faça o build noutra máquina com mais RAM e envie a imagem para o servidor (`docker save` / registry).
 
 Imagem final: Alpine + binário estático (~25–35 MB comprimida, conforme dependências).
 Runtime: `GIN_MODE=release` definido no `api-stack.yml`.
@@ -45,10 +60,19 @@ Se for usar em outro node/cluster, publique em registry e ajuste `API_IMAGE`.
 
 ## 3) Criar os secrets
 
+| Secret | Usado por | Conteúdo |
+|--------|-----------|----------|
+| `postgres_password` | Postgres | Senha do utilizador `campus_connect` |
+| `database_url` | API | URL completa (`postgres://...@db:5432/...`) |
+| `api_secret` | API | Segredo HMAC dos tokens JWT (string longa aleatória) |
+
 ```bash
 printf "SENHA_FORTE_AQUI" | docker secret create postgres_password -
-printf "postgres://campus_connect:SENHA_FORTE_AQUI@db:5432/campus_connect?sslmode=disable" | docker secret create database_url -
+printf "postgres://campus_connect:Veiga.2004x@db:5432/campus_connect?sslmode=disable" | docker secret create database_url -
+openssl rand -base64 48 | docker secret create api_secret -
 ```
+
+**Não** coloque senhas nem `API_SECRET` em `.env.db` / `.env.api` — esses ficheiros podem ir para o repositório como exemplos de tuning.
 
 ## 4) Preparar variaveis
 
@@ -59,16 +83,27 @@ cp .env.api.example .env.api
 
 ## 5) Deploy das stacks
 
-Primeiro banco (cria a rede overlay compartilhada `campus_overlay_shared`):
+O `docker stack deploy` **nao suporta** `--env-file` em versoes antigas do Docker CLI.
+Use o script `deploy.sh`, que carrega o `.env` no shell e substitui `${VAR}` nos YAML:
 
 ```bash
-docker stack deploy -c db-stack.yml --env-file .env.db campus-db
+chmod +x deploy.sh
+
+# Banco primeiro (cria a rede overlay campus_overlay_shared)
+./deploy.sh campus-db db-stack.yml .env.db
+
+# API depois
+./deploy.sh campus-api api-stack.yml .env.api
 ```
 
-Depois API:
+Alternativa manual:
 
 ```bash
-docker stack deploy -c api-stack.yml --env-file .env.api campus-api
+set -a && . ./.env.db && set +a
+docker stack deploy -c db-stack.yml campus-db
+
+set -a && . ./.env.api && set +a
+docker stack deploy -c api-stack.yml campus-api
 ```
 
 ## 6) Verificacao
@@ -82,5 +117,6 @@ docker service logs -f campus-api_api
 ## Observacoes
 
 - O host do banco dentro da rede overlay e `db`.
-- A API usa `DATABASE_URL_FILE=/run/secrets/database_url`.
+- A API lê `DATABASE_URL_FILE` e `API_SECRET_FILE` em `/run/secrets/`.
+- `CORS_ORIGIN` e `PUBLIC_BASE_URL` podem ficar em `environment` no stack (não são secret).
 - Secret no Swarm nao e editavel; remova e recrie quando precisar trocar valor.

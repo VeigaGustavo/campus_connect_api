@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,6 +35,14 @@ func NovoSegurancaService(repositorio SegurancaRepository) *SegurancaService {
 }
 
 func segredoAssinatura() string {
+	if arquivo := strings.TrimSpace(os.Getenv("API_SECRET_FILE")); arquivo != "" {
+		dados, err := os.ReadFile(filepath.Clean(arquivo))
+		if err == nil {
+			if s := strings.TrimSpace(string(dados)); s != "" {
+				return s
+			}
+		}
+	}
 	if s := strings.TrimSpace(os.Getenv("API_SECRET")); s != "" {
 		return s
 	}

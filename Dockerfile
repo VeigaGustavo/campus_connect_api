@@ -9,12 +9,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
+
+# Compilação serial (GOMAXPROCS=1, -p 1) evita OOM em hosts com pouca RAM (ex.: t3.micro).
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOMAXPROCS=1
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -trimpath -ldflags="-s -w" \
-    -o /bin/campus_connect_api \
-    .
+    go build -p 1 -trimpath -ldflags="-s -w" -o /bin/campus_connect_api .
 
 FROM alpine:3.22
 
