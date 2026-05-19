@@ -6,6 +6,7 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       DATABASE_URL_FILE: /run/secrets/database_url
+      API_SECRET_FILE: /run/secrets/api_secret
       GIN_MODE: release
     ports:
       - target: 8080
@@ -14,6 +15,7 @@ services:
         mode: ingress
     secrets:
       - database_url
+      - api_secret
     networks:
       - campus_overlay
     deploy:
@@ -49,6 +51,8 @@ services:
 
 secrets:
   database_url:
+    external: true
+  api_secret:
     external: true
 
 networks:

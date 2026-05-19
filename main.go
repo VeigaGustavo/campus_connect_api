@@ -23,13 +23,16 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError})))
+	log.SetOutput(os.Stdout)
+	log.Println("campus_connect_api: arranque")
 	carregarEnvLocal()
 
 	contexto := context.Background()
 	urlBancoDados := resolverDatabaseURL()
 	if urlBancoDados == "" {
-		log.Fatal("DATABASE_URL ou DATABASE_URL_FILE é obrigatório; configure o PostgreSQL e rode as migrações em db/init")
+		log.Fatal("DATABASE_URL ou DATABASE_URL_FILE é obrigatório; verifique o secret database_url em /run/secrets/database_url")
 	}
+	log.Println("campus_connect_api: base de dados configurada")
 	pool, err := banco.NovoPool(contexto, urlBancoDados)
 	if err != nil {
 		log.Fatalf("postgres: %v", err)
