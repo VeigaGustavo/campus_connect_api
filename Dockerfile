@@ -24,6 +24,8 @@ RUN apk add --no-cache ca-certificates wget \
 
 WORKDIR /app
 COPY --from=builder /bin/campus_connect_api /usr/local/bin/campus_connect_api
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/campus_connect_api
 
 EXPOSE 8080
 USER app
@@ -31,4 +33,4 @@ USER app
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
 
-ENTRYPOINT ["campus_connect_api"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
